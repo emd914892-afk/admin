@@ -220,126 +220,167 @@
             return dates;
         }
 
+        // আইটেম থেকে YYYY-MM-DD তারিখ বের করার হেলপার ফাংশন
+        function extractDateString(item) {
+            if (item.date) {
+                return item.date.split('T')[0];
+            } else if (item.timestamp) {
+                return new Date(item.timestamp).toISOString().split('T')[0];
+            }
+            return '';
+        }
+
         async function generateReport() {
-            const last7Days = getLast7Days();
+            try {
+                const last7Days = getLast7Days();
 
-            // ডাটাবেস থেকে deposits এবং orders সংগ্রহ
-            const depositsSnap = await get(ref(db, 'deposits'));
-            const ordersSnap = await get(ref(db, 'orders'));
+                // ডাটাবেস থেকে deposits, orders এবং user_orders তথ্য সংগ্রহ
+                const [depositsSnap, ordersSnap, userOrdersSnap] = await Promise.all([
+                    get(ref(db, 'deposits')),
+                    get(ref(db, 'orders')),
+                    get(ref(db, 'user_orders'))
+                ]);
 
-            const deposits = depositsSnap.exists() ? depositsSnap.val() : {};
-            const orders = ordersSnap.exists() ? ordersSnap.val() : {};
+                const deposits = depositsSnap.exists() ? depositsSnap.val() : {};
+                const ordersRaw = ordersSnap.exists() ? ordersSnap.val() : {};
+                const userOrdersRaw = userOrdersSnap.exists() ? userOrdersSnap.val() : {};
 
-            let overallDepositSum = 0;
-            let overallOrderSum = 0;
-            let overallOrderCount = 0;
+                // সব অর্ডার মার্জ করা (orders + user_orders)
+                const combinedOrders = {};
 
-            // তারিখ অনুযায়ী ডাটা সাজানোর অবজেক্ট
-            const dailyDeposits = {};
-            const dailyOrders = {};
-            const serviceSummary = {};
+                Object.keys(ordersRaw).forEach(key => {
+                    combinedOrders[key] = { id: key, ...ordersRaw[key] };
+                });
 
-            last7Days.forEach(date => {
-                dailyDeposits[date] = { bkash: 0, nagad: 0, rocket: 0, total: 0 };
-                dailyOrders[date] = { count: 0, amount: 0 };
-            });
-
-            // ১. ডিপোজিট প্রসেসিং
-            Object.values(deposits).forEach(item => {
-                // তারিখ ফিল্টার (ধরে নেওয়া হয়েছে deposit-এ 'date' ফিল্ডের মান YYYY-MM-DD ফরম্যাটে বা তার সাথে মেলে)
-                const itemDate = item.date ? item.date.split('T')[0] : '';
-                if (dailyDeposits[itemDate]) {
-                    const amount = parseFloat(item.amount || 0);
-                    const method = (item.method || '').toLowerCase();
-
-                    if (method.includes('bkash') || method.includes('বিকাশ')) {
-                        dailyDeposits[itemDate].bkash += amount;
-                    } else if (method.includes('nagad') || method.includes('নগদ')) {
-                        dailyDeposits[itemDate].nagad += amount;
-                    } else if (method.includes('rocket') || method.includes('রকেট')) {
-                        dailyDeposits[itemDate].rocket += amount;
+                Object.keys(userOrdersRaw).forEach(userId => {
+                    const userGroup = userOrdersRaw[userId];
+                    if (typeof userGroup === 'object') {
+                        Object.keys(userGroup).forEach(orderId => {
+                            combinedOrders[orderId] = {
+                                ...(combinedOrders[orderId] || {}),
+                                id: orderId,
+                                ...userGroup[orderId]
+                            };
+                        });
                     }
+                });
 
-                    dailyDeposits[itemDate].total += amount;
-                    overallDepositSum += amount;
-                }
-            });
+                let overallDepositSum = 0;
+                let overallOrderSum = 0;
+                let overallOrderCount = 0;
 
-            // ২. অর্ডার প্রসেসিং
-            Object.values(orders).forEach(item => {
-                const itemDate = item.date ? item.date.split('T')[0] : '';
-                if (dailyOrders[itemDate]) {
-                    const amount = parseFloat(item.totalAmount || item.price || 0);
-                    const serviceName = item.serviceName || item.service || 'Unknown Service';
-                    const qty = parseInt(item.quantity || 1);
+                const dailyDeposits = {};
+                const dailyOrders = {};
+                const serviceSummary = {};
 
-                    dailyOrders[itemDate].count += 1;
-                    dailyOrders[itemDate].amount += amount;
+                last7Days.forEach(date => {
+                    dailyDeposits[date] = { bkash: 0, nagad: 0, rocket: 0, total: 0 };
+                    dailyOrders[date] = { count: 0, amount: 0 };
+                });
 
-                    overallOrderSum += amount;
-                    overallOrderCount += 1;
+                // ১. ডিপোজিট প্রসেসিং
+                Object.values(deposits).forEach(item => {
+                    const itemDate = extractDateString(item);
+                    if (dailyDeposits[itemDate]) {
+                        const amount = parseFloat(item.amount || 0);
+                        const method = (item.method || '').toLowerCase();
 
-                    // সার্ভিস ওয়াইজ হিসাব
-                    if (!serviceSummary[serviceName]) {
-                        serviceSummary[serviceName] = { qty: 0, price: 0 };
+                        if (method.includes('bkash') || method.includes('বিকাশ')) {
+                            dailyDeposits[itemDate].bkash += amount;
+                        } else if (method.includes('nagad') || method.includes('নগদ')) {
+                            dailyDeposits[itemDate].nagad += amount;
+                        } else if (method.includes('rocket') || method.includes('রকেট')) {
+                            dailyDeposits[itemDate].rocket += amount;
+                        }
+
+                        dailyDeposits[itemDate].total += amount;
+                        overallDepositSum += amount;
                     }
-                    serviceSummary[serviceName].qty += qty;
-                    serviceSummary[serviceName].price += amount;
-                }
-            });
+                });
 
-            // ৩. ইন্টারফেসে ডাটা রেন্ডার করা
-            document.getElementById('totalDepositAmount').innerText = `৳${overallDepositSum}`;
-            document.getElementById('totalOrderAmount').innerText = `৳${overallOrderSum}`;
-            document.getElementById('totalOrderCount').innerText = `${overallOrderCount} টি`;
+                // ২. মার্জকৃত অর্ডার প্রসেসিং
+                Object.values(combinedOrders).forEach(item => {
+                    const itemDate = extractDateString(item);
+                    if (dailyOrders[itemDate]) {
+                        const amount = parseFloat(item.totalPrice !== undefined ? item.totalPrice : (item.totalAmount || item.price || 0));
+                        const serviceName = item.title || item.category || item.serviceName || item.service || 'Unknown Service';
+                        const qty = parseInt(item.quantity || 1);
 
-            // ডিপোজিট টেবিল পূরণ
-            const depositTbody = document.getElementById('dailyDepositTable');
-            last7Days.forEach(date => {
-                const d = dailyDeposits[date];
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${date}</strong></td>
-                    <td>৳${d.bkash}</td>
-                    <td>৳${d.nagad}</td>
-                    <td>৳${d.rocket}</td>
-                    <td><strong>৳${d.total}</strong></td>
-                `;
-                depositTbody.appendChild(tr);
-            });
+                        dailyOrders[itemDate].count += 1;
+                        dailyOrders[itemDate].amount += amount;
 
-            // অর্ডার টেবিল পূরণ
-            const orderTbody = document.getElementById('dailyOrderTable');
-            last7Days.forEach(date => {
-                const o = dailyOrders[date];
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${date}</strong></td>
-                    <td>${o.count} টি</td>
-                    <td><strong>৳${o.amount}</strong></td>
-                `;
-                orderTbody.appendChild(tr);
-            });
+                        overallOrderSum += amount;
+                        overallOrderCount += 1;
 
-            // সার্ভিস টেবিল পূরণ
-            const serviceTbody = document.getElementById('serviceTable');
-            if (Object.keys(serviceSummary).length > 0) {
-                Object.keys(serviceSummary).forEach(sName => {
-                    const s = serviceSummary[sName];
+                        // সার্ভিস ওয়াইজ হিসাব
+                        if (!serviceSummary[serviceName]) {
+                            serviceSummary[serviceName] = { qty: 0, price: 0 };
+                        }
+                        serviceSummary[serviceName].qty += qty;
+                        serviceSummary[serviceName].price += amount;
+                    }
+                });
+
+                // ৩. ইন্টারফেসে ডাটা রেন্ডার করা
+                document.getElementById('totalDepositAmount').innerText = `৳${overallDepositSum.toFixed(2)}`;
+                document.getElementById('totalOrderAmount').innerText = `৳${overallOrderSum.toFixed(2)}`;
+                document.getElementById('totalOrderCount').innerText = `${overallOrderCount} টি`;
+
+                // ডিপোজিট টেবিল পূরণ
+                const depositTbody = document.getElementById('dailyDepositTable');
+                depositTbody.innerHTML = '';
+                last7Days.forEach(date => {
+                    const d = dailyDeposits[date];
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td><strong>${sName}</strong></td>
-                        <td>${s.qty} টি</td>
-                        <td><strong>৳${s.price}</strong></td>
+                        <td><strong>${date}</strong></td>
+                        <td>৳${d.bkash.toFixed(2)}</td>
+                        <td>৳${d.nagad.toFixed(2)}</td>
+                        <td>৳${d.rocket.toFixed(2)}</td>
+                        <td><strong>৳${d.total.toFixed(2)}</strong></td>
                     `;
-                    serviceTbody.appendChild(tr);
+                    depositTbody.appendChild(tr);
                 });
-            } else {
-                serviceTbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">গত ৭ দিনে কোনো অর্ডার নেই!</td></tr>`;
-            }
 
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('reportContent').style.display = 'block';
+                // অর্ডার টেবিল পূরণ
+                const orderTbody = document.getElementById('dailyOrderTable');
+                orderTbody.innerHTML = '';
+                last7Days.forEach(date => {
+                    const o = dailyOrders[date];
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${date}</strong></td>
+                        <td>${o.count} টি</td>
+                        <td><strong>৳${o.amount.toFixed(2)}</strong></td>
+                    `;
+                    orderTbody.appendChild(tr);
+                });
+
+                // সার্ভিস টেবিল পূরণ
+                const serviceTbody = document.getElementById('serviceTable');
+                serviceTbody.innerHTML = '';
+                if (Object.keys(serviceSummary).length > 0) {
+                    Object.keys(serviceSummary).forEach(sName => {
+                        const s = serviceSummary[sName];
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>${sName}</strong></td>
+                            <td>${s.qty} টি</td>
+                            <td><strong>৳${s.price.toFixed(2)}</strong></td>
+                        `;
+                        serviceTbody.appendChild(tr);
+                    });
+                } else {
+                    serviceTbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">গত ৭ দিনে কোনো অর্ডার নেই!</td></tr>`;
+                }
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('reportContent').style.display = 'block';
+
+            } catch (error) {
+                console.error("Report Generation Error:", error);
+                document.getElementById('loading').innerText = 'রিপোর্ট তৈরি করতে সমস্যা হয়েছে: ' + error.message;
+            }
         }
 
         generateReport();
