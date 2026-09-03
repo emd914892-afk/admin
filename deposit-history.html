@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Deposit History</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f7f6;
+            color: #333;
+            padding: 20px;
+        }
+
+        /* হেডার ও ব্যাক বাটন স্টাইল */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin-bottom: 30px;
+            background: #fff;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 15px;
+            background-color: #28a745;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background-color: #218838;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            color: #2c3e50;
+        }
+
+        /* টেবিল কন্টেইনার */
+        .table-container {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            color: #495057;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        /* স্ট্যাটাস ব্যাজ */
+        .status {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .status.approved { background: #d4edda; color: #155724; }
+        .status.pending { background: #fff3cd; color: #856404; }
+        .status.rejected { background: #f8d7da; color: #721c24; }
+
+        /* লোডার */
+        #loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 16px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- হেডার ও ব্যাক বাটন -->
+    <div class="header">
+        <a href="javascript:history.back()" class="back-btn">&#8592; Back</a>
+        <h1>Deposit History</h1>
+    </div>
+
+    <!-- ডিপোজিট টেবিল -->
+    <div class="table-container">
+        <div id="loading">ডিপোজিট হিস্ট্রি লোড হচ্ছে...</div>
+        <table id="depositTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>User ID / Email</th>
+                    <th>Payment Method</th>
+                    <th>Transaction ID</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody id="depositList">
+                <!-- ফায়ারবেস থেকে ডাটা এখানে আসবে -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // আপনার Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyAz-zkj7o-5w47U2AFAdXWvpa0uYaF9VFw",
+            authDomain: "mail-shop-bd.firebaseapp.com",
+            databaseURL: "https://mail-shop-bd-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "mail-shop-bd",
+            storageBucket: "mail-shop-bd.firebasestorage.app",
+            messagingSenderId: "19603951400",
+            appId: "1:19603951400:web:4eedb894f65ba908898a1d",
+            measurementId: "G-5T3HESJSW2"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // ডাটাবেসের "deposits" নোড থেকে ডাটা নিয়ে আসা
+        const depositsRef = ref(db, 'deposits');
+        const depositList = document.getElementById('depositList');
+        const loading = document.getElementById('loading');
+        const depositTable = document.getElementById('depositTable');
+
+        onValue(depositsRef, (snapshot) => {
+            depositList.innerHTML = ''; // আগের লিস্ট খালি করা
+            
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                
+                Object.keys(data).forEach((id) => {
+                    const deposit = data[id];
+
+                    // স্ট্যাটাসের টেক্সট ও ক্লাস হ্যান্ডেল করা
+                    let statusClass = 'pending';
+                    let statusText = deposit.status || 'Pending';
+                    
+                    if (statusText.toLowerCase() === 'approved' || statusText.toLowerCase() === 'success') {
+                        statusClass = 'approved';
+                    } else if (statusText.toLowerCase() === 'rejected' || statusText.toLowerCase() === 'failed') {
+                        statusClass = 'rejected';
+                    }
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${deposit.user || deposit.email || 'N/A'}</td>
+                        <td><strong>${deposit.method || 'bKash/Nagad'}</strong></td>
+                        <td><code>${deposit.trxID || deposit.transactionId || 'N/A'}</code></td>
+                        <td>৳${deposit.amount || '0'}</td>
+                        <td><span class="status ${statusClass}">${statusText}</span></td>
+                        <td>${deposit.date || 'N/A'}</td>
+                    `;
+                    depositList.appendChild(tr);
+                });
+
+                loading.style.display = 'none';
+                depositTable.style.display = 'table';
+            } else {
+                loading.innerText = 'কোনো ডিপোজিট হিস্ট্রি পাওয়া যায়নি!';
+            }
+        }, (error) => {
+            loading.innerText = 'ডাটা লোড করতে সমস্যা হয়েছে: ' + error.message;
+        });
+    </script>
+</body>
+</html>

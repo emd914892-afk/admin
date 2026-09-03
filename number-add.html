@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>কাজ চলমান</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+
+        /* ব্যাক বাটন স্টাইল */
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background-color: #ffffff;
+            color: #333;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background-color: #007bff;
+            color: #ffffff;
+            transform: translateY(-2px);
+        }
+
+        /* কনটেন্ট স্টাইল */
+        .container {
+            text-align: center;
+            padding: 40px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            max-width: 450px;
+            width: 90%;
+        }
+
+        /* লোডিং অ্যানিমেশন */
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #e0e0e0;
+            border-top: 5px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .container h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .container p {
+            font-size: 15px;
+            color: #666;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- উপরে বামে ব্যাক বাটন -->
+    <a href="javascript:history.back()" class="back-btn">
+        &#8592; পেছনে যান
+    </a>
+
+    <!-- মূল কনটেন্ট -->
+    <div class="container">
+        <div class="spinner"></div>
+        <h1>কাজ চলমান রয়েছে</h1>
+        <p>এই পৃষ্ঠাটির উন্নয়ন কাজ চলছে। খুব শীঘ্রই পৃষ্ঠাটি আপনার জন্য উন্মুক্ত করা হবে। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।</p>
+    </div>
+
+</body>
+</html>

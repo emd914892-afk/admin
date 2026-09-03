@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Premium Subscription Admin - Mail Shop BD</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #020617; color: #f8fafc; min-height: 100vh; padding: 20px; }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #1e293b;
+      margin-bottom: 25px;
+    }
+
+    .header h1 { font-size: 20px; color: #eab308; display: flex; align-items: center; gap: 8px; }
+
+    .admin-container { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+    .card {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #eab308;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 8px;
+    }
+
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 5px; }
+    .form-control {
+      width: 100%;
+      padding: 10px;
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #fff;
+      outline: none;
+      font-size: 14px;
+    }
+
+    .form-control:focus { border-color: #eab308; }
+
+    textarea.form-control { resize: vertical; min-height: 100px; }
+
+    .btn {
+      padding: 10px 18px;
+      background: #eab308;
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+
+    .btn:hover { background: #ca8a04; }
+    .btn-back { background: #1e293b; color: #fff; }
+    .btn-back:hover { background: #334155; }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #1e293b; }
+    th { color: #94a3b8; background: #020617; }
+    
+    .action-btn {
+      padding: 4px 8px;
+      font-size: 12px;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .edit-btn { background: #3b82f6; margin-right: 5px; }
+    .edit-btn:hover { background: #2563eb; }
+    .delete-btn { background: #ef4444; }
+    .delete-btn:hover { background: #dc2626; }
+
+    /* Modal Overlay Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(2, 6, 23, 0.8);
+      backdrop-filter: blur(4px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-box {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 16px;
+      max-width: 450px;
+      width: 100%;
+      padding: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 12px;
+      margin-bottom: 15px;
+    }
+
+    .modal-header h3 { font-size: 18px; color: #eab308; display: flex; align-items: center; gap: 8px; }
+    .close-modal { background: none; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; }
+
+    .modal-actions { display: flex; gap: 10px; margin-top: 15px; }
+    .confirm-btn { flex: 1; }
+    .cancel-btn { background: #334155; color: #fff; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div class="admin-container">
+    <div class="header">
+      <h1><i class="fa-solid fa-crown"></i> Add Premium Subscription</h1>
+      <button class="btn btn-back" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back</button>
+    </div>
+
+    <!-- 1. Add New Premium Subscription Category -->
+    <div class="card">
+      <div class="card-title"><i class="fa-solid fa-plus-circle"></i> ১. নতুন সাবস্ক্রিপশন সার্ভিস তৈরি করুন</div>
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
+        <div class="form-group">
+          <label>সাবস্ক্রিপশনের নাম (Title)</label>
+          <input type="text" id="serviceTitle" class="form-control" placeholder="যেমন: Netflix 1 Month Private">
+        </div>
+        <div class="form-group">
+          <label>মূল্য (BDT/৳)</label>
+          <input type="number" id="servicePrice" class="form-control" placeholder="যেমন: 150">
+        </div>
+      </div>
+      <button class="btn" onclick="createSubscriptionService()"><i class="fa-solid fa-floppy-disk"></i> সার্ভিস সেভ করুন</button>
+    </div>
+
+    <!-- 2. Add Stock Items to Subscription -->
+    <div class="card">
+      <div class="card-title"><i class="fa-solid fa-upload"></i> ২. স্টক আপলোড করুন (Bulk Stock Add)</div>
+      <div class="form-group">
+        <label>সাবস্ক্রিপশন সিলেক্ট করুন</label>
+        <select id="stockServiceSelect" class="form-control">
+          <option value="">লোডিং হচ্ছে...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>স্টক ডাটা (প্রতি লাইনে ১ টি করে ইমেইল:পাসওয়ার্ড বা অ্যাকাউন্ট দিন)</label>
+        <textarea id="stockInput" class="form-control" placeholder="user1@gmail.com:pass123&#10;user2@gmail.com:pass123"></textarea>
+      </div>
+      <button class="btn" onclick="addSubscriptionStock()"><i class="fa-solid fa-boxes-stacked"></i> স্টক যোগ করুন</button>
+    </div>
+
+    <!-- 3. Active Subscription List -->
+    <div class="card">
+      <div class="card-title"><i class="fa-solid fa-list"></i> ৩. বিদ্যমান সাবস্ক্রিপশন তালিকা</div>
+      <table>
+        <thead>
+          <tr>
+            <th>নাম</th>
+            <th>মূল্য</th>
+            <th>বর্তমান স্টক</th>
+            <th>একশন</th>
+          </tr>
+        </thead>
+        <tbody id="servicesTableBody">
+          <!-- Dynamically Loaded -->
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- Edit Service Modal -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-pen-to-square"></i> সার্ভিস এডিট করুন</h3>
+        <button class="close-modal" onclick="closeEditModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="form-group">
+        <label>সাবস্ক্রিপশনের নাম</label>
+        <input type="text" id="editServiceTitle" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>মূল্য (BDT/৳)</label>
+        <input type="number" id="editServicePrice" class="form-control">
+      </div>
+      <div class="modal-actions">
+        <button class="cancel-btn" onclick="closeEditModal()">বাতিল</button>
+        <button class="btn confirm-btn" onclick="saveEditedService()"><i class="fa-solid fa-check"></i> আপডেট করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase Compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAz-zkj7o-5w47U2AFAdXWvpa0uYaF9VFw",
+      authDomain: "mail-shop-bd.firebaseapp.com",
+      databaseURL: "https://mail-shop-bd-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "mail-shop-bd",
+      storageBucket: "mail-shop-bd.firebasestorage.app",
+      messagingSenderId: "19603951400",
+      appId: "1:19603951400:web:4eedb894f65ba908898a1d"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let editingServiceKey = null;
+
+    // 🔴 ১. নতুন সাবস্ক্রিপশন সার্ভিস তৈরি করা
+    async function createSubscriptionService() {
+      const title = document.getElementById('serviceTitle').value.trim();
+      const price = parseFloat(document.getElementById('servicePrice').value);
+
+      if (!title || isNaN(price)) {
+        alert("দয়া করে সঠিক টাইটেল এবং প্রাইজ লিখুন!");
+        return;
+      }
+
+      const newRef = db.ref('subscription_services').push();
+      await newRef.set({
+        title: title,
+        price: price,
+        createdAt: new Date().toISOString()
+      });
+
+      alert("প্রিমিয়াম সাবস্ক্রিপশন সার্ভিস তৈরি হয়েছে!");
+      document.getElementById('serviceTitle').value = '';
+      document.getElementById('servicePrice').value = '';
+    }
+
+    // 🔴 ২. প্রিমিয়াম স্টক আপলোড করা (Bulk)
+    async function addSubscriptionStock() {
+      const serviceKey = document.getElementById('stockServiceSelect').value;
+      const stockRaw = document.getElementById('stockInput').value.trim();
+
+      if (!serviceKey) {
+        alert("দয়া করে একটি সাবস্ক্রিপশন সিলেক্ট করুন!");
+        return;
+      }
+
+      if (!stockRaw) {
+        alert("দয়া করে স্টক ডাটা লিখুন!");
+        return;
+      }
+
+      const items = stockRaw.split('\n').map(item => item.trim()).filter(item => item !== '');
+
+      if (items.length === 0) {
+        alert("কোনো ডাটা পাওয়া যায়নি!");
+        return;
+      }
+
+      const itemsRef = db.ref(`subscription_services/${serviceKey}/items`);
+      
+      for (let item of items) {
+        await itemsRef.push(item);
+      }
+
+      alert(`সফলভাবে ${items.length} টি স্টক আপডেট করা হয়েছে!`);
+      document.getElementById('stockInput').value = '';
+    }
+
+    // 🔴 ৩. ড্রপডাউন এবং তালিকায় সার্ভিসসমূহ লোড করা
+    function loadSubscriptionServices() {
+      const select = document.getElementById('stockServiceSelect');
+      const tbody = document.getElementById('servicesTableBody');
+
+      db.ref('subscription_services').on('value', snapshot => {
+        select.innerHTML = '';
+        tbody.innerHTML = '';
+
+        if (!snapshot.exists()) {
+          select.innerHTML = '<option value="">কোনো সার্ভিস তৈরি করা নেই</option>';
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b;">কোনো সাবস্ক্রিপশন সার্ভিস পাওয়া যায়নি</td></tr>';
+          return;
+        }
+
+        snapshot.forEach(child => {
+          const service = child.val();
+          const key = child.key;
+          const stockCount = service.items ? Object.keys(service.items).length : 0;
+
+          // Populate Select Box
+          select.innerHTML += `<option value="${key}">${service.title} (৳${service.price})</option>`;
+
+          // Safe String Escaping for HTML inline attributes
+          const safeTitle = service.title.replace(/'/g, "\\'");
+
+          // Populate Table
+          tbody.innerHTML += `
+            <tr>
+              <td><strong>${service.title}</strong></td>
+              <td>৳${service.price}</td>
+              <td><span style="color: ${stockCount > 0 ? '#10b981' : '#ef4444'}; font-weight: bold;">${stockCount} Pcs</span></td>
+              <td>
+                <button class="action-btn edit-btn" onclick="openEditModal('${key}', '${safeTitle}', ${service.price})"><i class="fa-solid fa-pen-to-square"></i> এডিট</button>
+                <button class="action-btn delete-btn" onclick="deleteService('${key}')"><i class="fa-solid fa-trash"></i> ডিলিট</button>
+              </td>
+            </tr>
+          `;
+        });
+      });
+    }
+
+    // 🔴 ৪. সার্ভিস এডিট মডাল ওপেন করা
+    function openEditModal(key, title, price) {
+      editingServiceKey = key;
+      document.getElementById('editServiceTitle').value = title;
+      document.getElementById('editServicePrice').value = price;
+      document.getElementById('editModal').style.display = 'flex';
+    }
+
+    // 🔴 ৫. মডাল ক্লোজ করা
+    function closeEditModal() {
+      document.getElementById('editModal').style.display = 'none';
+      editingServiceKey = null;
+    }
+
+    // 🔴 ৬. সার্ভিস আপডেট সেভ করা
+    async function saveEditedService() {
+      if (!editingServiceKey) return;
+
+      const updatedTitle = document.getElementById('editServiceTitle').value.trim();
+      const updatedPrice = parseFloat(document.getElementById('editServicePrice').value);
+
+      if (!updatedTitle || isNaN(updatedPrice)) {
+        alert("দয়া করে সঠিক টাইটেল এবং প্রাইজ লিখুন!");
+        return;
+      }
+
+      try {
+        await db.ref(`subscription_services/${editingServiceKey}`).update({
+          title: updatedTitle,
+          price: updatedPrice
+        });
+
+        alert("সার্ভিস সফলভাবে আপডেট করা হয়েছে!");
+        closeEditModal();
+      } catch (error) {
+        alert("আপডেট করতে ব্যর্থ হয়েছে: " + error.message);
+      }
+    }
+
+    // 🔴 ৭. সার্ভিস ডিলিট করার ফংশন
+    async function deleteService(key) {
+      if (confirm("আপনি কি নিশ্চিত এই সাবস্ক্রিপশনটি মুছে ফেলতে চান?")) {
+        await db.ref(`subscription_services/${key}`).remove();
+        alert("সার্ভিসটি ডিলিট করা হয়েছে!");
+      }
+    }
+
+    // Initialize
+    loadSubscriptionServices();
+  </script>
+</body>
+</html>

@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Global Shop BD</title>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 260px;
+      background-color: #1e293b;
+      border-right: 1px solid #334155;
+      height: 100vh;
+      position: fixed;
+      left: -260px;
+      top: 0;
+      transition: left 0.3s ease;
+      z-index: 1000;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .sidebar.active {
+      left: 0;
+    }
+    .sidebar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+      color: #3b82f6;
+    }
+    .sidebar-header h2 {
+      font-size: 20px;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .sidebar-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .sidebar-item {
+      padding: 12px 15px;
+      color: #cbd5e1;
+      text-decoration: none;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .sidebar-item i {
+      font-size: 16px;
+      color: #3b82f6;
+      width: 20px;
+      text-align: center;
+    }
+    .sidebar-item:hover {
+      background-color: #334155;
+      color: #fff;
+    }
+
+    /* Main Content Layout */
+    .main-wrapper {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navbar */
+    .navbar {
+      background-color: #1e293b;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+    }
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .hamburger-btn {
+      background: none;
+      border: none;
+      color: #f8fafc;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    .total-user-badge {
+      background-color: #3b82f6;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Profile Dropdown */
+    .profile-container {
+      position: relative;
+    }
+    .profile-icon {
+      font-size: 24px;
+      color: #60a5fa;
+      cursor: pointer;
+      background: #0f172a;
+      padding: 8px;
+      border-radius: 50%;
+      border: 1px solid #334155;
+    }
+    .dropdown-menu {
+      position: absolute;
+      right: 0;
+      top: 45px;
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      width: 160px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 100;
+    }
+    .dropdown-menu.show {
+      display: flex;
+    }
+    .dropdown-item {
+      padding: 12px 15px;
+      color: #f8fafc;
+      text-decoration: none;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .dropdown-item:hover {
+      background-color: #334155;
+    }
+
+    /* Dashboard Grid (2 Buttons per row) */
+    .container {
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+    .dashboard-btn {
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      padding: 20px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+    .dashboard-btn i {
+      font-size: 24px;
+      color: #3b82f6;
+    }
+    .dashboard-btn:hover {
+      background-color: #2563eb;
+      border-color: #2563eb;
+    }
+    .dashboard-btn:hover i {
+      color: #fff;
+    }
+
+    /* Add Button Action */
+    .add-btn-wrapper {
+      display: flex;
+      justify-content: center;
+      margin-top: 25px;
+    }
+    .add-btn {
+      background-color: #10b981;
+      color: white;
+      border: none;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      font-size: 22px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4);
+      transition: transform 0.2s;
+    }
+    .add-btn:hover {
+      transform: scale(1.1);
+    }
+
+    /* Modal Styling */
+    .modal-overlay {
+      position: fixed;
+      top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    .modal-card {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 350px;
+      border: 1px solid #334155;
+    }
+    .modal-card h3 { margin-bottom: 15px; color: #3b82f6; }
+    .modal-card input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 12px;
+      background: #0f172a;
+      border: 1px solid #475569;
+      color: #fff;
+      border-radius: 6px;
+      outline: none;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .modal-actions button {
+      padding: 8px 15px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar Hamburger Menu (৭টি বাটন যুক্ত করা হয়েছে) -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h2>Admin Navigation</h2>
+      <button class="close-btn" id="closeSidebar"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    
+    <div class="sidebar-menu">
+      <a href="mail-add.html" class="sidebar-item">
+        <i class="fa-solid fa-house"></i>
+        <span>Mail Add</span>
+      </a>
+      <a href="vpn-add.html" class="sidebar-item">
+        <i class="fa-solid fa-users"></i>
+        <span>Vpn Add</span>
+      </a>
+      <a href="proxy-add.html" class="sidebar-item">
+        <i class="fa-solid fa-cart-shopping"></i>
+        <span>Proxy Add</span>
+      </a>
+      <a href="premium-add.html" class="sidebar-item">
+        <i class="fa-solid fa-box-open"></i>
+        <span>Premium Add</span>
+      </a>
+      <a href="number-add.html" class="sidebar-item">
+        <i class="fa-solid fa-wallet"></i>
+        <span>Number Management</span>
+      </a>
+      <a href="order-history.html" class="sidebar-item">
+        <i class="fa-solid fa-chart-line"></i>
+        <span>Order History</span>
+      </a>
+      <a href="deposit-history.html" class="sidebar-item">
+        <i class="fa-solid fa-gear"></i>
+        <span>Deposit History</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="main-wrapper">
+    <!-- Navbar -->
+    <div class="navbar">
+      <div class="nav-left">
+        <button class="hamburger-btn" id="openSidebar"><i class="fa-solid fa-bars"></i></button>
+        <div class="total-user-badge">
+          <i class="fa-solid fa-users"></i>
+          Total User: <span id="totalUserCount">0</span>
+        </div>
+      </div>
+
+      <!-- Profile Dropdown -->
+      <div class="profile-container">
+        <i class="fa-solid fa-user-gear profile-icon" id="profileToggle"></i>
+        <div class="dropdown-menu" id="profileDropdown">
+          <a href="profile.html" class="dropdown-item"><i class="fa-solid fa-user"></i> Profile</a>
+          <div class="dropdown-item" id="logoutBtn" style="color: #f87171;"><i class="fa-solid fa-right-from-bracket"></i> Logout</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard Main Grid (২টি করে বাটন) -->
+    <div class="container">
+      <div class="button-grid" id="buttonGrid">
+        <a href="account-update.html" class="dashboard-btn">
+          <i class="fa-solid fa-users-gear"></i>
+          <span>Payment Number Update</span>
+        </a>
+        <a href="user-list.html" class="dashboard-btn">
+          <i class="fa-solid fa-cart-shopping"></i>
+          <span>User List</span>
+        </a>
+        <a href="traking.html" class="dashboard-btn">
+          <i class="fa-solid fa-box-open"></i>
+          <span>User Traking</span>
+        </a>
+        <a href="report.html" class="dashboard-btn">
+          <i class="fa-solid fa-wallet"></i>
+          <span>Report</span>
+        </a>
+      </div>
+
+      <!-- প্লাস আইকন বাটন -->
+      <div class="add-btn-wrapper">
+        <button class="add-btn" id="openAddModal"><i class="fa-solid fa-plus"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Creating New Dynamic Button -->
+  <div class="modal-overlay" id="addModal">
+    <div class="modal-card">
+      <h3>Add New Button</h3>
+      <input type="text" id="newBtnName" placeholder="Button Name (e.g. Extra)">
+      <input type="text" id="newBtnLink" placeholder="Link Page (e.g. ghvb.html)">
+      <input type="text" id="newBtnIcon" placeholder="FontAwesome Class (e.g. fa-link)" value="fa-link">
+      <div class="modal-actions">
+        <button id="closeAddModal" style="background: #475569; color: #fff;">Cancel</button>
+        <button id="saveBtn" style="background: #2563eb; color: #fff;">Add Button</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase Compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <script>
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAz-zkj7o-5w47U2AFAdXWvpa0uYaF9VFw",
+      authDomain: "mail-shop-bd.firebaseapp.com",
+      databaseURL: "https://mail-shop-bd-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "mail-shop-bd",
+      storageBucket: "mail-shop-bd.firebasestorage.app",
+      messagingSenderId: "19603951400",
+      appId: "1:19603951400:web:4eedb894f65ba908898a1d",
+      measurementId: "G-5T3HESJSW2"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    // Admin Auth Protection & User Count fetch
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        window.location.href = "index.html";
+      } else {
+        db.ref('users').on('value', snapshot => {
+          if(snapshot.exists()){
+            document.getElementById('totalUserCount').innerText = snapshot.numChildren();
+          } else {
+            document.getElementById('totalUserCount').innerText = "0";
+          }
+        });
+      }
+    });
+
+    // Sidebar Navigation Logic
+    const sidebar = document.getElementById('sidebar');
+    document.getElementById('openSidebar').addEventListener('click', () => sidebar.classList.add('active'));
+    document.getElementById('closeSidebar').addEventListener('click', () => sidebar.classList.remove('active'));
+
+    // Profile Dropdown Toggle
+    const profileDropdown = document.getElementById('profileDropdown');
+    document.getElementById('profileToggle').addEventListener('click', (e) => {
+      e.stopPropagation();
+      profileDropdown.classList.toggle('show');
+    });
+    window.addEventListener('click', () => profileDropdown.classList.remove('show'));
+
+    // Logout Handling
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      auth.signOut().then(() => {
+        window.location.href = "index.html";
+      });
+    });
+
+    // Dynamic Button Logic (LocalStorage)
+    const buttonGrid = document.getElementById('buttonGrid');
+    const addModal = document.getElementById('addModal');
+
+    document.getElementById('openAddModal').addEventListener('click', () => addModal.style.display = 'flex');
+    document.getElementById('closeAddModal').addEventListener('click', () => addModal.style.display = 'none');
+
+    function loadCustomButtons() {
+      const savedButtons = JSON.parse(localStorage.getItem('admin_custom_buttons')) || [];
+      savedButtons.forEach(btnData => {
+        renderButton(btnData.name, btnData.link, btnData.icon);
+      });
+    }
+
+    function renderButton(name, link, iconClass) {
+      const a = document.createElement('a');
+      a.href = link;
+      a.className = 'dashboard-btn';
+      a.innerHTML = `<i class="fa-solid ${iconClass}"></i><span>${name}</span>`;
+      buttonGrid.appendChild(a);
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', () => {
+      const name = document.getElementById('newBtnName').value.trim();
+      const link = document.getElementById('newBtnLink').value.trim();
+      let icon = document.getElementById('newBtnIcon').value.trim() || "fa-link";
+
+      if(!name || !link) {
+        alert("বাটনের নাম এবং লিংক দেওয়া আবশ্যক!");
+        return;
+      }
+
+      const btnObj = { name, link, icon };
+      const savedButtons = JSON.parse(localStorage.getItem('admin_custom_buttons')) || [];
+      savedButtons.push(btnObj);
+      localStorage.setItem('admin_custom_buttons', JSON.stringify(savedButtons));
+
+      renderButton(name, link, icon);
+
+      document.getElementById('newBtnName').value = '';
+      document.getElementById('newBtnLink').value = '';
+      addModal.style.display = 'none';
+    });
+
+    loadCustomButtons();
+  </script>
+</body>
+</html>

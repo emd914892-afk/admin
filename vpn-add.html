@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VPN Admin Panel - Edit & Manage Stock</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #0b1120; color: #f8fafc; min-height: 100vh; padding: 20px; padding-bottom: 50px; }
+
+    .header { 
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 25px; 
+      border-bottom: 1px solid #1e293b; 
+      padding-bottom: 15px; 
+    }
+    
+    .back-btn {
+      position: absolute;
+      left: 0;
+      top: 0;
+      background: #1e293b;
+      color: #3b82f6;
+      border: 1px solid #334155;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: background 0.2s ease;
+    }
+
+    .back-btn:hover {
+      background: #334155;
+      color: #fff;
+    }
+
+    .header h2 { color: #ef4444; font-size: 22px; display: flex; align-items: center; gap: 10px; }
+
+    .admin-container { max-width: 650px; margin: 0 auto; }
+    
+    .card {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 25px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    }
+
+    .card-title { font-size: 18px; font-weight: 700; color: #3b82f6; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 5px; font-weight: 600; }
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+    input:focus, textarea:focus { border-color: #3b82f6; }
+    textarea { height: 120px; resize: vertical; }
+
+    .btn-group { display: flex; gap: 10px; }
+
+    .submit-btn {
+      flex: 1;
+      padding: 12px;
+      background: linear-gradient(90deg, #10b981, #059669);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .cancel-edit-btn {
+      padding: 12px 20px;
+      background: #334155;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      display: none;
+    }
+
+    /* Existing VPN Services List */
+    .service-item {
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 12px 15px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .service-info h4 { font-size: 15px; color: #fff; }
+    .service-info p { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+    .stock-badge { background: #1e293b; color: #10b981; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+    
+    .action-btns { display: flex; gap: 8px; }
+    .edit-btn { background: #eab308; border: none; color: #000; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; }
+    .del-btn { background: #ef4444; border: none; color: white; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+  <div class="admin-container">
+    <div class="header">
+      <!-- Top Left Back Button -->
+      <button class="back-btn" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i> Back</button>
+      <h2><i class="fa-solid fa-shield-halved"></i> VPN Admin Panel</h2>
+    </div>
+
+    <!-- Add/Edit VPN Service Card -->
+    <div class="card">
+      <div class="card-title">
+        <span id="formHeader"><i class="fa-solid fa-plus-circle"></i> নতুন VPN প্যাকেজ / স্টক যোগ করুন</span>
+        <span id="editingBadge" style="display:none; font-size: 12px; color: #eab308; background: #1e293b; padding: 3px 8px; border-radius: 6px;">Editing Mode</span>
+      </div>
+
+      <input type="hidden" id="editKey" value="">
+
+      <div class="form-group">
+        <label>VPN ক্যাটাগরি / নাম (Title)</label>
+        <input type="text" id="serviceTitle" placeholder="Ex: ExpressVPN 1 Month / NordVPN Premium">
+      </div>
+
+      <div class="form-group">
+        <label>প্রতি VPN একাউন্টের দাম (Price per Account - ৳)</label>
+        <input type="number" id="servicePrice" placeholder="Ex: 50.00">
+      </div>
+
+      <div class="form-group">
+        <label id="stockLabel">VPN স্টক ডাটা (প্রতি লাইনে একটি করে একাউন্ট/কী লিখুন)</label>
+        <textarea id="serviceItems" placeholder="vpn_email1:pass1&#10;vpn_email2:pass2&#10;license_key_3"></textarea>
+      </div>
+
+      <div class="btn-group">
+        <button class="submit-btn" id="saveBtn" onclick="saveVPNService()"><i class="fa-solid fa-cloud-arrow-up"></i> VPN স্টক আপলোড করুন</button>
+        <button class="cancel-edit-btn" id="cancelEditBtn" onclick="resetForm()">Cancel Edit</button>
+      </div>
+    </div>
+
+    <!-- Live VPN Services Management Card -->
+    <div class="card">
+      <div class="card-title"><i class="fa-solid fa-list-check"></i> বর্তমান সব VPN সার্ভিস ও স্টক</div>
+      <div id="servicesContainer">
+        <p style="text-align: center; color: #64748b;">Loading VPN Services...</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Firebase Compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAz-zkj7o-5w47U2AFAdXWvpa0uYaF9VFw",
+      authDomain: "mail-shop-bd.firebaseapp.com",
+      databaseURL: "https://mail-shop-bd-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "mail-shop-bd",
+      storageBucket: "mail-shop-bd.firebasestorage.app",
+      messagingSenderId: "19603951400",
+      appId: "1:19603951400:web:4eedb894f65ba908898a1d"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // 🔴 Save or Update VPN Stock Function
+    async function saveVPNService() {
+      const editKey = document.getElementById('editKey').value;
+      const title = document.getElementById('serviceTitle').value.trim();
+      const price = parseFloat(document.getElementById('servicePrice').value);
+      const rawItems = document.getElementById('serviceItems').value.trim();
+
+      if (!title || isNaN(price)) {
+        alert("দয়া করে সার্ভিসের নাম এবং দাম পূরণ করুন!");
+        return;
+      }
+
+      const btn = document.getElementById('saveBtn');
+      btn.disabled = true;
+      btn.innerText = "Saving...";
+
+      const itemsList = rawItems.length > 0 
+        ? rawItems.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+        : [];
+
+      try {
+        if (editKey) {
+          // EDIT MODE: Update existing record directly
+          const updates = {};
+          updates[`vpn_services/${editKey}/title`] = title;
+          updates[`vpn_services/${editKey}/price`] = price;
+
+          if (itemsList.length > 0) {
+            const itemsObj = {};
+            itemsList.forEach(item => {
+              const newItemKey = db.ref().child('dummy').push().key;
+              itemsObj[newItemKey] = item;
+            });
+            updates[`vpn_services/${editKey}/items`] = itemsObj;
+          }
+
+          await db.ref().update(updates);
+          alert("VPN তথ্য সফলভাবে আপডেট করা হয়েছে!");
+        } else {
+          // NEW ADD MODE: Check if package title exists
+          const snapshot = await db.ref('vpn_services').once('value');
+          let existingKey = null;
+
+          if (snapshot.exists()) {
+            snapshot.forEach(child => {
+              if (child.val().title.toLowerCase() === title.toLowerCase()) {
+                existingKey = child.key;
+              }
+            });
+          }
+
+          if (existingKey) {
+            const updates = {};
+            updates[`vpn_services/${existingKey}/price`] = price;
+            
+            itemsList.forEach(item => {
+              const newItemKey = db.ref(`vpn_services/${existingKey}/items`).push().key;
+              updates[`vpn_services/${existingKey}/items/${newItemKey}`] = item;
+            });
+
+            await db.ref().update(updates);
+            alert("বিদ্যমান ভিপিএন সার্ভিসে নতুন স্টক যোগ করা হয়েছে!");
+          } else {
+            if (itemsList.length === 0) {
+              alert("নতুন ভিপিএন সার্ভিস তৈরির জন্য অবশ্যই স্টক ডাটা দিতে হবে!");
+              btn.disabled = false;
+              btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> VPN স্টক আপলোড করুন';
+              return;
+            }
+
+            const newServiceRef = db.ref('vpn_services').push();
+            const itemsObj = {};
+            itemsList.forEach(item => {
+              const newItemKey = db.ref().child('dummy').push().key;
+              itemsObj[newItemKey] = item;
+            });
+
+            await newServiceRef.set({
+              title: title,
+              price: price,
+              items: itemsObj
+            });
+            alert("নতুন VPN সার্ভিস সফলভাবে তৈরি হয়েছে!");
+          }
+        }
+
+        resetForm();
+      } catch (err) {
+        alert("Error: " + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // 🔴 Load Existing VPN Services
+    function loadVPNServices() {
+      const container = document.getElementById('servicesContainer');
+
+      db.ref('vpn_services').on('value', snapshot => {
+        container.innerHTML = '';
+
+        if (!snapshot.exists()) {
+          container.innerHTML = '<p style="text-align: center; color: #64748b;">কোনো VPN সার্ভিস যোগ করা নেই।</p>';
+          return;
+        }
+
+        snapshot.forEach(child => {
+          const service = child.val();
+          const key = child.key;
+
+          let stockCount = 0;
+          if (service.items) {
+            stockCount = Object.keys(service.items).length;
+          }
+
+          container.innerHTML += `
+            <div class="service-item">
+              <div class="service-info">
+                <h4>${service.title}</h4>
+                <p>দাম: ৳${service.price} | স্টক: <span class="stock-badge">${stockCount} Pcs</span></p>
+              </div>
+              <div class="action-btns">
+                <button class="edit-btn" onclick="editVPNService('${key}')"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+                <button class="del-btn" onclick="deleteVPNService('${key}')"><i class="fa-solid fa-trash"></i></button>
+              </div>
+            </div>
+          `;
+        });
+      });
+    }
+
+    // 🔴 Fetch and Populate Form for Editing
+    async function editVPNService(key) {
+      try {
+        const snapshot = await db.ref(`vpn_services/${key}`).once('value');
+        if (!snapshot.exists()) return;
+
+        const service = snapshot.val();
+        
+        document.getElementById('editKey').value = key;
+        document.getElementById('serviceTitle').value = service.title;
+        document.getElementById('servicePrice').value = service.price;
+
+        let itemsText = "";
+        if (service.items) {
+          itemsText = Object.values(service.items).join('\n');
+        }
+        document.getElementById('serviceItems').value = itemsText;
+
+        document.getElementById('formHeader').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> VPN প্যাকেজ এডিট করুন';
+        document.getElementById('editingBadge').style.display = 'inline-block';
+        document.getElementById('stockLabel').innerText = "VPN স্টক ডাটা (নতুন কিছু যোগ বা পুরানো পরিবর্তন করতে পারেন)";
+        document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> পরিবর্তন সেভ করুন';
+        document.getElementById('cancelEditBtn').style.display = 'block';
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err) {
+        alert("ডাটা ফেচ করতে সমস্যা হয়েছে: " + err.message);
+      }
+    }
+
+    // 🔴 Reset Form to Default Add Mode
+    function resetForm() {
+      document.getElementById('editKey').value = '';
+      document.getElementById('serviceTitle').value = '';
+      document.getElementById('servicePrice').value = '';
+      document.getElementById('serviceItems').value = '';
+
+      document.getElementById('formHeader').innerHTML = '<i class="fa-solid fa-plus-circle"></i> নতুন VPN প্যাকেজ / স্টক যোগ করুন';
+      document.getElementById('editingBadge').style.display = 'none';
+      document.getElementById('stockLabel').innerText = "VPN স্টক ডাটা (প্রতি লাইনে একটি করে একাউন্ট/কী লিখুন)";
+      document.getElementById('saveBtn').innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> VPN স্টক আপলোড করুন';
+      document.getElementById('cancelEditBtn').style.display = 'none';
+    }
+
+    // 🔴 Delete VPN Service
+    function deleteVPNService(key) {
+      if (confirm("আপনি কি নিশ্চিত যে এই VPN সার্ভিসটি পুরোপুরি ডিলিট করতে চান?")) {
+        db.ref(`vpn_services/${key}`).remove()
+          .then(() => {
+            alert("VPN সার্ভিসটি ডিলিট করা হয়েছে!");
+            resetForm();
+          })
+          .catch(err => alert("Error: " + err.message));
+      }
+    }
+
+    // Initial Load
+    loadVPNServices();
+  </script>
+</body>
+</html>

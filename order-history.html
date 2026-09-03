@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - All Order History</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f7f6;
+            color: #333;
+            padding: 20px;
+        }
+
+        /* হেডার ও ব্যাক বাটন স্টাইল */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin-bottom: 30px;
+            background: #fff;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            color: #2c3e50;
+        }
+
+        /* টেবিল কন্টেইনার */
+        .table-container {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            color: #495057;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        /* স্ট্যাটাস ব্যাজ */
+        .status {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .status.pending { background: #ffeaa7; color: #d63031; }
+        .status.completed { background: #55efc4; color: #00b894; }
+
+        /* লোডার */
+        #loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 16px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <a href="javascript:history.back()" class="back-btn">&#8592; Back</a>
+        <h1>All Order History</h1>
+    </div>
+
+    <div class="table-container">
+        <div id="loading">অর্ডার লোড হচ্ছে...</div>
+        <table id="orderTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Customer Name</th>
+                    <th>Phone</th>
+                    <th>Total Price</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody id="orderList">
+                </tbody>
+        </table>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // আপনার Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyAz-zkj7o-5w47U2AFAdXWvpa0uYaF9VFw",
+            authDomain: "mail-shop-bd.firebaseapp.com",
+            databaseURL: "https://mail-shop-bd-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "mail-shop-bd",
+            storageBucket: "mail-shop-bd.firebasestorage.app",
+            messagingSenderId: "19603951400",
+            appId: "1:19603951400:web:4eedb894f65ba908898a1d",
+            measurementId: "G-5T3HESJSW2"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // ডাটাবেসের "orders" নোড থেকে ডাটা নিয়ে আসা
+        const ordersRef = ref(db, 'orders');
+        const orderList = document.getElementById('orderList');
+        const loading = document.getElementById('loading');
+        const orderTable = document.getElementById('orderTable');
+
+        onValue(ordersRef, (snapshot) => {
+            orderList.innerHTML = ''; // আগের লিস্ট খালি করা
+            
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                
+                // অবজেক্টকে এরে বানিয়ে লুপ চালানো
+                Object.keys(data).forEach((orderId) => {
+                    const order = data[orderId];
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>#${orderId.slice(-6)}</strong></td>
+                        <td>${order.name || 'N/A'}</td>
+                        <td>${order.phone || 'N/A'}</td>
+                        <td>৳${order.totalAmount || order.price || '0'}</td>
+                        <td><span class="status ${order.status === 'Completed' ? 'completed' : 'pending'}">${order.status || 'Pending'}</span></td>
+                        <td>${order.date || 'N/A'}</td>
+                    `;
+                    orderList.appendChild(tr);
+                });
+
+                loading.style.display = 'none';
+                orderTable.style.display = 'table';
+            } else {
+                loading.innerText = 'কোনো অর্ডার পাওয়া যায়নি!';
+            }
+        }, (error) => {
+            loading.innerText = 'ডাটা লোড করতে সমস্যা হয়েছে: ' + error.message;
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Add Mail Service</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #0b1120; color: #f8fafc; min-height: 100vh; padding: 20px; }
+
+    .top-bar { max-width: 600px; margin: 0 auto 20px auto; display: flex; align-items: center; justify-content: space-between; }
+    .back-btn { background-color: #1e293b; border: 1px solid #334155; color: #3b82f6; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 18px; }
+    .top-title { font-size: 18px; font-weight: 700; color: #f8fafc; }
+
+    .card { background-color: #1e293b; max-width: 600px; margin: 0 auto 20px auto; padding: 20px; border-radius: 16px; border: 1px solid #334155; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); }
+    .card-heading { font-size: 16px; font-weight: 700; margin-bottom: 15px; color: #f97316; display: flex; align-items: center; gap: 8px; }
+
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; }
+    
+    input, textarea { width: 100%; padding: 12px; background-color: #0f172a; border: 1px solid #475569; border-radius: 8px; color: #fff; font-size: 14px; outline: none; }
+    textarea { height: 140px; resize: vertical; font-family: monospace; font-size: 11px; }
+    input:focus, textarea:focus { border-color: #3b82f6; }
+
+    .submit-btn { width: 100%; padding: 12px; background: linear-gradient(90deg, #2563eb, #1d4ed8); color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+    .service-item { background-color: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .service-info .title { font-weight: 700; color: #f8fafc; font-size: 15px; }
+    .service-info .sub { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+    .service-actions { display: flex; gap: 8px; }
+    .action-btn { background: none; border: none; font-size: 16px; cursor: pointer; padding: 6px; border-radius: 6px; }
+    .edit-btn { color: #3b82f6; }
+    .delete-btn { color: #ef4444; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <a href="dashboard.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+    <div class="top-title">Add & Manage Mails</div>
+    <div style="width: 40px;"></div>
+  </div>
+
+  <!-- Form Card -->
+  <div class="card">
+    <div class="card-heading"><i class="fa-solid fa-plus"></i> Add New Mail Category</div>
+    
+    <input type="hidden" id="serviceId">
+
+    <div class="form-group">
+      <label>Service Title</label>
+      <input type="text" id="titleInput" placeholder="e.g. Outlook fr">
+    </div>
+
+    <div class="form-group">
+      <label>Price Per Unit (৳)</label>
+      <input type="number" step="0.01" id="priceInput" placeholder="e.g. 0.85">
+    </div>
+
+    <div class="form-group">
+      <label>Mails Data (Format: Mail|Pass|RefreshToken|ID)</label>
+      <textarea id="mailsInput" placeholder="ElizaLoftus-Hills9846@outlook.fr|lv3qr2Ae|M.C549_BAY...|3fda1cf8-10f3..."></textarea>
+    </div>
+
+    <button class="submit-btn" id="saveBtn" onclick="saveService()">
+      <i class="fa-solid fa-cloud-arrow-up"></i> Upload Stock Mails
+    </button>
+  </div>
+
+  <!-- List Card -->
+  <div class="card">
+    <div class="card-heading"><i class="fa-solid fa-list"></i> Existing Categories</div>
+    <div id="serviceList"><p style="text-align: center; color: #64748b;">Loading...</p></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAz-zkj7o-5w47U2AFAdXWvpa0uYaF9VFw",
+      authDomain: "mail-shop-bd.firebaseapp.com",
+      databaseURL: "https://mail-shop-bd-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "mail-shop-bd",
+      storageBucket: "mail-shop-bd.firebasestorage.app",
+      messagingSenderId: "19603951400",
+      appId: "1:19603951400:web:4eedb894f65ba908898a1d"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    auth.onAuthStateChanged(user => {
+      if (!user) window.location.href = "index.html";
+      else loadServicesList();
+    });
+
+    function saveService() {
+      const serviceId = document.getElementById('serviceId').value;
+      const title = document.getElementById('titleInput').value.trim();
+      const price = parseFloat(document.getElementById('priceInput').value);
+      const rawMails = document.getElementById('mailsInput').value.trim();
+
+      if (!title || isNaN(price)) {
+        alert("দয়া করে সঠিক টাইটেল ও মূল্য লিখুন!");
+        return;
+      }
+
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+      saveBtn.innerText = "Uploading...";
+
+      const targetRef = serviceId ? db.ref('mail_services/' + serviceId) : db.ref('mail_services').push();
+
+      targetRef.child('title').set(title);
+      targetRef.child('price').set(price);
+
+      if (rawMails) {
+        const mailLines = rawMails.split('\n');
+        mailLines.forEach(line => {
+          const cleanLine = line.trim();
+          if (cleanLine) {
+            targetRef.child('items').push(cleanLine);
+          }
+        });
+      }
+
+      alert(serviceId ? "ক্যাটাগরি ও স্টক আপডেট হয়েছে!" : "নতুন স্টক মেইল আপলোড সফল হয়েছে!");
+      resetForm();
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Upload Stock Mails`;
+    }
+
+    function loadServicesList() {
+      const container = document.getElementById('serviceList');
+      db.ref('mail_services').on('value', snapshot => {
+        container.innerHTML = '';
+        if (!snapshot.exists()) {
+          container.innerHTML = '<p style="text-align: center; color: #64748b;">কোনো স্টক পাওয়া যায়নি।</p>';
+          return;
+        }
+
+        snapshot.forEach(child => {
+          const service = child.val();
+          const key = child.key;
+          let stockCount = service.items ? Object.keys(service.items).length : 0;
+
+          container.innerHTML += `
+            <div class="service-item">
+              <div class="service-info">
+                <div class="title">${service.title}</div>
+                <div class="sub">Price: ৳${service.price} | Available Stock: <b style="color:#10b981">${stockCount}</b> pcs</div>
+              </div>
+              <div class="service-actions">
+                <button class="action-btn edit-btn" onclick="editService('${key}', '${service.title}', ${service.price})"><i class="fa-solid fa-pen-to-square"></i></button>
+                <button class="action-btn delete-btn" onclick="deleteService('${key}')"><i class="fa-solid fa-trash"></i></button>
+              </div>
+            </div>
+          `;
+        });
+      });
+    }
+
+    function editService(key, title, price) {
+      document.getElementById('serviceId').value = key;
+      document.getElementById('titleInput').value = title;
+      document.getElementById('priceInput').value = price;
+      document.getElementById('mailsInput').placeholder = "এখানে নতুন Pipe (|) আলাদা করা মেইল পেস্ট করলে তা পুরানো স্টকে জমা হবে...";
+      document.getElementById('saveBtn').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Update Service / Add Stock`;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function deleteService(key) {
+      if (confirm("আপনি কি নিশ্চিত যে এই স্টকটি পুরোপুরি ডিলিট করে দিতে চান?")) {
+        db.ref('mail_services/' + key).remove();
+      }
+    }
+
+    function resetForm() {
+      document.getElementById('serviceId').value = '';
+      document.getElementById('titleInput').value = '';
+      document.getElementById('priceInput').value = '';
+      document.getElementById('mailsInput').value = '';
+      document.getElementById('saveBtn').innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Upload Stock Mails`;
+    }
+  </script>
+</body>
+</html>
+admin-dashboard

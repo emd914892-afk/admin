@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - User Tracking</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f7f6;
+            color: #333;
+            padding: 15px;
+        }
+
+        /* হেডার ও ব্যাক বাটন */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin-bottom: 20px;
+            background: #fff;
+            padding: 12px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 15px;
+            padding: 6px 12px;
+            background-color: #333;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            color: #2c3e50;
+        }
+
+        .section-title {
+            margin: 20px 0 10px 0;
+            font-size: 16px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        /* টেবিল স্টাইল */
+        .table-container {
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            color: #495057;
+        }
+
+        .rank {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        #loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- হেডার -->
+    <div class="header">
+        <a href="javascript:history.back()" class="back-btn">&#8592; Back</a>
+        <h1>User Tracking (Last 30 Days)</h1>
+    </div>
+
+    <div id="loading">ট্র্যাকিং ডাটা প্রসেস করা হচ্ছে...</div>
+
+    <div id="trackingContent" style="display: none;">
+        
+        <!-- ১. গত ৩০ দিনের ডেইলি সাইট ভিজিটর -->
+        <div class="section-title">Daily Site Visitors Count</div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Total Unique Visitors</th>
+                    </tr>
+                </thead>
+                <tbody id="dailyVisitorsTable"></tbody>
+            </table>
+        </div>
+
+        <!-- ২. টপ ১০ ডিপোজিটর -->
+        <div class="section-title">Top 10 Highest Depositors</div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>User (Email/ID)</th>
+                        <th>Total Deposited</th>
+                        <th>Highest Deposit Date</th>
+                    </tr>
+                </thead>
+                <tbody id="topDepositorsTable"></tbody>
+            </table>
+        </div>
+
+        <!-- ৩. টপ ১০ অর্ডারিং ইউজার -->
+        <div class="section-title">Top 10 Highest Spenders (Orders)</div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>User (Email/ID)</th>
+                        <th>Total Spent</th>
+                        <th>Highest Order Date</th>
+                    </tr>
+                </thead>
+                <tbody id="topOrdersTable"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAz-zkj7o-5w47U2AFAdXWvpa0uYaF9VFw",
+            authDomain: "mail-shop-bd.firebaseapp.com",
+            databaseURL: "https://mail-shop-bd-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "mail-shop-bd",
+            storageBucket: "mail-shop-bd.firebasestorage.app",
+            messagingSenderId: "19603951400",
+            appId: "1:19603951400:web:4eedb894f65ba908898a1d",
+            measurementId: "G-5T3HESJSW2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // গত ৩০ দিনের তারিখের লিস্ট
+        function getLast30Days() {
+            const dates = [];
+            for (let i = 0; i < 30; i++) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                dates.push(d.toISOString().split('T')[0]);
+            }
+            return dates;
+        }
+
+        async function processTrackingData() {
+            const last30Days = getLast30Days();
+
+            // ফায়ারবেস থেকে ডাটা ফেচ করা
+            const depositsSnap = await get(ref(db, 'deposits'));
+            const ordersSnap = await get(ref(db, 'orders'));
+            const visitsSnap = await get(ref(db, 'site_visits')); // ভিজিটর ট্র্যাকিং নোড
+
+            const deposits = depositsSnap.exists() ? depositsSnap.val() : {};
+            const orders = ordersSnap.exists() ? ordersSnap.val() : {};
+            const visits = visitsSnap.exists() ? visitsSnap.val() : {};
+
+            // ১. ভিজিটর প্রসেসিং
+            const visitorTbody = document.getElementById('dailyVisitorsTable');
+            last30Days.forEach(date => {
+                const count = visits[date] ? Object.keys(visits[date]).length : 0;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td><strong>${date}</strong></td><td>${count} জন</td>`;
+                visitorTbody.appendChild(tr);
+            });
+
+            // ২. ডিপোজিট প্রসেসিং (ইউজার ভিত্তিক)
+            const userDeposits = {};
+            Object.values(deposits).forEach(item => {
+                const date = item.date ? item.date.split('T')[0] : '';
+                if (last30Days.includes(date)) {
+                    const user = item.email || item.user || 'Unknown User';
+                    const amount = parseFloat(item.amount || 0);
+
+                    if (!userDeposits[user]) {
+                        userDeposits[user] = { total: 0, highestDate: date, maxInSingleDay: 0 };
+                    }
+                    userDeposits[user].total += amount;
+                    if (amount > userDeposits[user].maxInSingleDay) {
+                        userDeposits[user].maxInSingleDay = amount;
+                        userDeposits[user].highestDate = date;
+                    }
+                }
+            });
+
+            // ৩. অর্ডার প্রসেসিং (ইউজার ভিত্তিক)
+            const userOrders = {};
+            Object.values(orders).forEach(item => {
+                const date = item.date ? item.date.split('T')[0] : '';
+                if (last30Days.includes(date)) {
+                    const user = item.email || item.name || 'Unknown User';
+                    const amount = parseFloat(item.totalAmount || item.price || 0);
+
+                    if (!userOrders[user]) {
+                        userOrders[user] = { total: 0, highestDate: date, maxInSingleDay: 0 };
+                    }
+                    userOrders[user].total += amount;
+                    if (amount > userOrders[user].maxInSingleDay) {
+                        userOrders[user].maxInSingleDay = amount;
+                        userOrders[user].highestDate = date;
+                    }
+                }
+            });
+
+            // টপ ১০ ডিপোজিটর সাজানো
+            const top10Depositors = Object.entries(userDeposits)
+                .sort((a, b) => b[1].total - a[1].total)
+                .slice(0, 10);
+
+            const depTbody = document.getElementById('topDepositorsTable');
+            if (top10Depositors.length > 0) {
+                top10Depositors.forEach(([user, data], index) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="rank">#${index + 1}</td>
+                        <td>${user}</td>
+                        <td><strong>৳${data.total}</strong></td>
+                        <td>${data.highestDate}</td>
+                    `;
+                    depTbody.appendChild(tr);
+                });
+            } else {
+                depTbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">গত ৩০ দিনে কোনো ডিপোজিট নেই!</td></tr>`;
+            }
+
+            // টপ ১০ অর্ডারিং ইউজার সাজানো
+            const top10Orders = Object.entries(userOrders)
+                .sort((a, b) => b[1].total - a[1].total)
+                .slice(0, 10);
+
+            const ordTbody = document.getElementById('topOrdersTable');
+            if (top10Orders.length > 0) {
+                top10Orders.forEach(([user, data], index) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="rank">#${index + 1}</td>
+                        <td>${user}</td>
+                        <td><strong>৳${data.total}</strong></td>
+                        <td>${data.highestDate}</td>
+                    `;
+                    ordTbody.appendChild(tr);
+                });
+            } else {
+                ordTbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">গত ৩০ দিনে কোনো অর্ডার নেই!</td></tr>`;
+            }
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('trackingContent').style.display = 'block';
+        }
+
+        processTrackingData();
+    </script>
+</body>
+</html>

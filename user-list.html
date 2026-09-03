@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - User List</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f4f7f6;
+            color: #333;
+            padding: 15px;
+        }
+
+        /* হেডার ও ব্যাক বাটন */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin-bottom: 15px;
+            background: #fff;
+            padding: 12px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 15px;
+            padding: 6px 12px;
+            background-color: #333;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            color: #2c3e50;
+        }
+
+        /* সার্চ বক্স */
+        .search-container {
+            margin-bottom: 15px;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            outline: none;
+        }
+
+        /* টেবিল কন্টেইনার */
+        .table-container {
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            overflow-x: visible; /* ড্রপডাউন যেন না কাটে */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            color: #495057;
+        }
+
+        .user-email {
+            color: #0056b3;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: underline;
+            word-break: break-all;
+        }
+
+        /* ড্রপডাউন মেনু */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropbtn {
+            background-color: #28a745;
+            color: white;
+            padding: 6px 10px;
+            font-size: 13px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: #ffffff;
+            min-width: 170px;
+            box-shadow: 0px 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #ddd;
+        }
+
+        .dropdown-content button {
+            color: #333;
+            padding: 10px 12px;
+            text-decoration: none;
+            display: block;
+            font-size: 13px;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .dropdown-content button:hover {
+            background-color: #f1f1f1;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        /* মডাল জেনারেল স্টাইল */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 380px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 20px;
+            cursor: pointer;
+            color: #888;
+        }
+
+        .modal-field {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0 15px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .save-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #loading {
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- হেডার -->
+    <div class="header">
+        <a href="javascript:history.back()" class="back-btn">&#8592; Back</a>
+        <h1>User List</h1>
+    </div>
+
+    <!-- সার্চ বার -->
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search by Gmail..." onkeyup="filterUsers()">
+    </div>
+
+    <!-- ইউজার টেবিল -->
+    <div class="table-container">
+        <div id="loading">ইউজার তালিকা লোড হচ্ছে...</div>
+        <table id="userTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>Gmail</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="userList">
+                <!-- ডাটা ফায়ারবেস থেকে আসবে -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ১. ইউজার ডিটেইলস মডাল -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('userModal')">&times;</span>
+            <h3 style="margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 5px;">User Details</h3>
+            <div class="modal-field"><strong>Username:</strong> <span id="mUsername"></span></div>
+            <div class="modal-field"><strong>Gmail:</strong> <span id="mGmail"></span></div>
+            <div class="modal-field"><strong>UID:</strong> <span id="mUid" style="font-size: 11px;"></span></div>
+            <div class="modal-field"><strong>Balance:</strong> ৳<span id="mBalance"></span></div>
+            <div class="modal-field"><strong>Account Status:</strong> <span id="mStatus"></span></div>
+        </div>
+    </div>
+
+    <!-- ২. ব্যালেন্স আপডেট মডাল -->
+    <div id="balanceModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal('balanceModal')">&times;</span>
+            <h3 style="margin-bottom: 10px;">Update Balance</h3>
+            <p style="font-size: 13px; color: #666;" id="bUserEmail"></p>
+            <input type="number" id="newBalanceInput" class="modal-input" placeholder="Enter new balance">
+            <button class="save-btn" id="saveBalanceBtn">Save Balance</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getAuth, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // ফায়ারবেস কনফিগ
+        const firebaseConfig = {
+            apiKey: "AIzaSyAz-zkj7o-5w47U2AFAdXWvpa0uYaF9VFw",
+            authDomain: "mail-shop-bd.firebaseapp.com",
+            databaseURL: "https://mail-shop-bd-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "mail-shop-bd",
+            storageBucket: "mail-shop-bd.firebasestorage.app",
+            messagingSenderId: "19603951400",
+            appId: "1:19603951400:web:4eedb894f65ba908898a1d",
+            measurementId: "G-5T3HESJSW2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const auth = getAuth(app);
+
+        let usersData = {};
+        let selectedUserKey = null;
+
+        // ফায়ারবেস থেকে ইউজার লোড করা
+        const usersRef = ref(db, 'users');
+        onValue(usersRef, (snapshot) => {
+            const userList = document.getElementById('userList');
+            userList.innerHTML = '';
+            
+            if (snapshot.exists()) {
+                usersData = snapshot.val();
+                
+                Object.keys(usersData).forEach((key) => {
+                    const user = usersData[key];
+                    const tr = document.createElement('tr');
+                    
+                    tr.innerHTML = `
+                        <td>
+                            <span class="user-email" onclick="showUserModal('${key}')">${user.email || 'No Email'}</span>
+                        </td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="dropbtn">Option ▼</button>
+                                <div class="dropdown-content">
+                                    <button onclick="openBalanceModal('${key}', '${user.email}', ${user.balance || 0})">Update Balance</button>
+                                    <button onclick="sendPasswordReset('${user.email}')">Send Reset Link</button>
+                                    <button onclick="toggleDisableAccount('${key}', ${user.disabled || false})" style="color: red;">
+                                        ${user.disabled ? 'Enable Account' : 'Disable Account'}
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    `;
+                    userList.appendChild(tr);
+                });
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('userTable').style.display = 'table';
+            } else {
+                document.getElementById('loading').innerText = 'কোনো ইউজার পাওয়া যায়নি!';
+            }
+        });
+
+        // ডিটেইলস মডাল ওপেন করা
+        window.showUserModal = function(key) {
+            const user = usersData[key];
+            document.getElementById('mUsername').innerText = user.username || 'N/A';
+            document.getElementById('mGmail').innerText = user.email || 'N/A';
+            document.getElementById('mUid').innerText = user.uid || key;
+            document.getElementById('mBalance').innerText = user.balance || 0;
+            
+            const isVerified = user.verified || user.isVerified || false;
+            document.getElementById('mStatus').innerText = isVerified ? 'Verified' : 'Unverified';
+            document.getElementById('mStatus').style.color = isVerified ? 'green' : 'red';
+
+            document.getElementById('userModal').style.display = 'flex';
+        };
+
+        // ব্যালেন্স মডাল ওপেন করা
+        window.openBalanceModal = function(key, email, currentBalance) {
+            selectedUserKey = key;
+            document.getElementById('bUserEmail').innerText = "User: " + email;
+            document.getElementById('newBalanceInput').value = currentBalance;
+            document.getElementById('balanceModal').style.display = 'flex';
+        };
+
+        // ব্যালেন্স সেভ করা
+        document.getElementById('saveBalanceBtn').addEventListener('click', () => {
+            const newBal = document.getElementById('newBalanceInput').value;
+            if (newBal !== "" && !isNaN(newBal) && selectedUserKey) {
+                update(ref(db, `users/${selectedUserKey}`), {
+                    balance: parseFloat(newBal)
+                }).then(() => {
+                    alert("ব্যালেন্স সফলভাবে আপডেট করা হয়েছে!");
+                    closeModal('balanceModal');
+                }).catch((error) => {
+                    alert("ত্রুটি: " + error.message);
+                });
+            } else {
+                alert("সঠিক ব্যালেন্স লিখুন!");
+            }
+        });
+
+        // পাসওয়ার্ড রিসেট লিংক পাঠানো
+        window.sendPasswordReset = function(email) {
+            if (!email) {
+                alert("ইউজারের ইমেইল পাওয়া যায়নি!");
+                return;
+            }
+            if (confirm(`${email} ঠিকানায় পাসওয়ার্ড রিসেট লিংক পাঠাতে চান?`)) {
+                sendPasswordResetEmail(auth, email)
+                    .then(() => {
+                        alert("পাসওয়ার্ড রিসেট লিংক সফলভাবে পাঠানো হয়েছে!");
+                    })
+                    .catch((error) => {
+                        alert("ত্রুটি: " + error.message);
+                    });
+            }
+        };
+
+        // অ্যাকাউন্ট ডিসেবল / এনাবেল
+        window.toggleDisableAccount = function(key, isCurrentlyDisabled) {
+            const actionText = isCurrentlyDisabled ? "চালু" : "ডিসেবল";
+            if (confirm(`আপনি কি অ্যাকাউন্টটি ${actionText} করতে চান?`)) {
+                update(ref(db, `users/${key}`), {
+                    disabled: !isCurrentlyDisabled
+                }).then(() => {
+                    alert(`অ্যাকাউন্ট সফলভাবে ${actionText} করা হয়েছে!`);
+                }).catch((error) => {
+                    alert("ত্রুটি: " + error.message);
+                });
+            }
+        };
+
+        // মডাল ক্লোজ
+        window.closeModal = function(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        };
+
+        // সার্চ ফাংশন
+        window.filterUsers = function() {
+            const input = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#userList tr');
+
+            rows.forEach(row => {
+                const email = row.querySelector('.user-email').innerText.toLowerCase();
+                row.style.display = email.includes(input) ? '' : 'none';
+            });
+        };
+    </script>
+</body>
+</html>

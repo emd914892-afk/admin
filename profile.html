@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Profile - Mail Shop BD</title>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      width: 100%;
+      max-width: 450px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 25px;
+    }
+    .back-btn {
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      color: #3b82f6;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-size: 18px;
+      transition: background 0.2s;
+    }
+    .back-btn:hover {
+      background-color: #334155;
+    }
+    .top-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+
+    /* Profile Card */
+    .profile-card {
+      background-color: #1e293b;
+      width: 100%;
+      max-width: 450px;
+      padding: 30px 25px;
+      border-radius: 16px;
+      border: 1px solid #334155;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .profile-header {
+      text-align: center;
+      margin-bottom: 25px;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 15px;
+    }
+    .profile-avatar {
+      font-size: 50px;
+      color: #3b82f6;
+      margin-bottom: 10px;
+    }
+    .welcome-text {
+      font-size: 22px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #3b82f6;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    /* Details Group */
+    .info-group {
+      margin-bottom: 18px;
+    }
+    .info-group label {
+      display: block;
+      font-size: 12px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .info-box {
+      background-color: #0f172a;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 15px;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .toggle-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .toggle-btn:hover {
+      color: #3b82f6;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar with Back Button -->
+  <div class="top-bar">
+    <a href="dashboard.html" class="back-btn" title="Back to Dashboard">
+      <i class="fa-solid fa-arrow-left"></i>
+    </a>
+    <div class="top-title">Admin Profile</div>
+    <div style="width: 40px;"></div> <!-- Alignment Spacer -->
+  </div>
+
+  <!-- Profile Details Card -->
+  <div class="profile-card">
+    <div class="profile-header">
+      <i class="fa-solid fa-circle-user profile-avatar"></i>
+      <h2 class="welcome-text">Welcome <span id="welcomeName">Admin</span></h2>
+      <p class="subtitle">Mail Shop BD Admin Panel</p>
+    </div>
+
+    <!-- Username Field -->
+    <div class="info-group">
+      <label>Username</label>
+      <div class="info-box">
+        <span id="usernameVal">Loading...</span>
+        <i class="fa-solid fa-user-tag" style="color: #64748b;"></i>
+      </div>
+    </div>
+
+    <!-- Gmail Field -->
+    <div class="info-group">
+      <label>Gmail</label>
+      <div class="info-box">
+        <span id="emailVal">Loading...</span>
+        <i class="fa-solid fa-envelope" style="color: #64748b;"></i>
+      </div>
+    </div>
+
+    <!-- Password Field (Default Hidden with Toggle) -->
+    <div class="info-group">
+      <label>Password</label>
+      <div class="info-box">
+        <span id="passwordVal">••••••••</span>
+        <button type="button" id="togglePass" class="toggle-btn">
+          <i class="fa-solid fa-eye" id="passIcon"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase Compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+  <script>
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyAz-zkj7o-5w47U2AFAdXWvpa0uYaF9VFw",
+      authDomain: "mail-shop-bd.firebaseapp.com",
+      databaseURL: "https://mail-shop-bd-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "mail-shop-bd",
+      storageBucket: "mail-shop-bd.firebasestorage.app",
+      messagingSenderId: "19603951400",
+      appId: "1:19603951400:web:4eedb894f65ba908898a1d",
+      measurementId: "G-5T3HESJSW2"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    let actualPassword = ""; // পাসওয়ার্ড জমা রাখার ভেরিয়েবল
+    let isPasswordVisible = false;
+
+    // Check Auth State and Fetch Data
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        window.location.href = "index.html"; // লগইন না থাকলে রিডাইরেক্ট
+      } else {
+        // Fetch User Data from Database
+        db.ref('users/' + user.uid).once('value').then(snapshot => {
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            
+            const username = data.username || "Admin";
+            const email = data.email || user.email;
+            actualPassword = data.password || "N/A"; // ডাটাবেসে পাসওয়ার্ড ফিল্ড থাকলে তা দেখাবে
+
+            document.getElementById('welcomeName').innerText = username;
+            document.getElementById('usernameVal').innerText = username;
+            document.getElementById('emailVal').innerText = email;
+          } else {
+            document.getElementById('emailVal').innerText = user.email;
+          }
+        });
+      }
+    });
+
+    // Toggle Password Visibility
+    const togglePassBtn = document.getElementById('togglePass');
+    const passwordVal = document.getElementById('passwordVal');
+    const passIcon = document.getElementById('passIcon');
+
+    togglePassBtn.addEventListener('click', () => {
+      isPasswordVisible = !isPasswordVisible;
+
+      if (isPasswordVisible) {
+        passwordVal.innerText = actualPassword !== "" ? actualPassword : "••••••••";
+        passIcon.classList.remove('fa-eye');
+        passIcon.classList.add('fa-eye-slash');
+      } else {
+        passwordVal.innerText = "••••••••";
+        passIcon.classList.remove('fa-eye-slash');
+        passIcon.classList.add('fa-eye');
+      }
+    });
+  </script>
+</body>
+</html>
