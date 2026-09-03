@@ -75,16 +75,30 @@
             text-align: left;
             padding: 12px 15px;
             border-bottom: 1px solid #e0e0e0;
+            font-size: 14px;
         }
 
         th {
             background-color: #f8f9fa;
             color: #495057;
             font-weight: 600;
+            white-space: nowrap;
         }
 
         tr:hover {
             background-color: #f1f1f1;
+        }
+
+        .delivered-code {
+            background: #27272a;
+            color: #38bdf8;
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-width: 200px;
+            word-break: break-all;
+            display: inline-block;
         }
 
         /* স্ট্যাটাস ব্যাজ */
@@ -111,7 +125,7 @@
 
     <div class="header">
         <a href="javascript:history.back()" class="back-btn">&#8592; Back</a>
-        <h1>All Order History</h1>
+        <h1>All Order History (Admin Panel)</h1>
     </div>
 
     <div class="table-container">
@@ -120,15 +134,16 @@
             <thead>
                 <tr>
                     <th>Order ID</th>
-                    <th>Customer Name</th>
-                    <th>Phone</th>
-                    <th>Total Price</th>
-                    <th>Status</th>
+                    <th>User ID / Email</th>
+                    <th>Product / Category</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Delivered Data</th>
                     <th>Date</th>
                 </tr>
             </thead>
             <tbody id="orderList">
-                </tbody>
+            </tbody>
         </table>
     </div>
 
@@ -136,7 +151,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // আপনার Firebase Config
+        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyAz-zkj7o-5w47U2AFAdXWvpa0uYaF9VFw",
             authDomain: "mail-shop-bd.firebaseapp.com",
@@ -152,42 +167,120 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // ডাটাবেসের "orders" নোড থেকে ডাটা নিয়ে আসা
-        const ordersRef = ref(db, 'orders');
         const orderList = document.getElementById('orderList');
         const loading = document.getElementById('loading');
         const orderTable = document.getElementById('orderTable');
 
-        onValue(ordersRef, (snapshot) => {
-            orderList.innerHTML = ''; // আগের লিস্ট খালি করা
-            
-            if (snapshot.exists()) {
-                const data = snapshot.val();
-                
-                // অবজেক্টকে এরে বানিয়ে লুপ চালানো
-                Object.keys(data).forEach((orderId) => {
-                    const order = data[orderId];
+        // Fetch data from 'orders' and 'user_orders'
+        const ordersRef = ref(db, 'orders');
+        const userOrdersRef = ref(db, 'user_orders');
+
+        function loadAllAdminOrders() {
+            let ordersData = {};
+            let userOrdersData = {};
+
+            let ordersLoaded = false;
+            let userOrdersLoaded = false;
+
+            const renderData = () => {
+                if (!ordersLoaded || !userOrdersLoaded) return;
+
+                const combinedOrders = {};
+
+                // 1. Map 'orders' node
+                Object.keys(ordersData).forEach(key => {
+                    combinedOrders[key] = { id: key, ...ordersData[key] };
+                });
+
+                // 2. Map 'user_orders' node
+                Object.keys(userOrdersData).forEach(userId => {
+                    const userGroup = userOrdersData[userId];
+                    if (typeof userGroup === 'object') {
+                        Object.keys(userGroup).forEach(orderId => {
+                            combinedOrders[orderId] = {
+                                ...(combinedOrders[orderId] || {}),
+                                id: orderId,
+                                ...userGroup[orderId]
+                            };
+                        });
+                    }
+                });
+
+                const allOrdersList = Object.values(combinedOrders);
+
+                if (allOrdersList.length === 0) {
+                    loading.innerText = 'কোনো অর্ডার পাওয়া যায়নি!';
+                    orderTable.style.display = 'none';
+                    return;
+                }
+
+                // Sort by Latest Order First
+                allOrdersList.sort((a, b) => {
+                    const timeA = a.timestamp || (a.date ? new Date(a.date).getTime() : 0);
+                    const timeB = b.timestamp || (b.date ? new Date(b.date).getTime() : 0);
+                    return timeB - timeA;
+                });
+
+                orderList.innerHTML = '';
+                allOrdersList.forEach(order => {
+                    // Delivered Data Formatting
+                    let deliveredText = 'N/A';
+                    if (Array.isArray(order.deliveredData)) {
+                        deliveredText = order.deliveredData.join('<br>');
+                    } else if (typeof order.deliveredData === 'object' && order.deliveredData !== null) {
+                        deliveredText = Object.values(order.deliveredData).join('<br>');
+                    } else if (order.deliveredData) {
+                        deliveredText = order.deliveredData;
+                    }
+
+                    // Date Formatting
+                    let dateDisplay = 'N/A';
+                    if (order.date) {
+                        dateDisplay = new Date(order.date).toLocaleString();
+                    } else if (order.timestamp) {
+                        dateDisplay = new Date(order.timestamp).toLocaleString();
+                    }
+
+                    const userIdentifier = order.userEmail || order.userId || 'N/A';
+                    const title = order.title || order.category || 'N/A';
+                    const price = order.totalPrice !== undefined ? order.totalPrice : (order.totalAmount || order.price || 0);
 
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td><strong>#${orderId.slice(-6)}</strong></td>
-                        <td>${order.name || 'N/A'}</td>
-                        <td>${order.phone || 'N/A'}</td>
-                        <td>৳${order.totalAmount || order.price || '0'}</td>
-                        <td><span class="status ${order.status === 'Completed' ? 'completed' : 'pending'}">${order.status || 'Pending'}</span></td>
-                        <td>${order.date || 'N/A'}</td>
+                        <td><strong>#${order.id.slice(-6)}</strong></td>
+                        <td>${userIdentifier}</td>
+                        <td>${title}</td>
+                        <td>${order.quantity || 1}</td>
+                        <td>৳ ${price}</td>
+                        <td><div class="delivered-code">${deliveredText}</div></td>
+                        <td>${dateDisplay}</td>
                     `;
                     orderList.appendChild(tr);
                 });
 
                 loading.style.display = 'none';
                 orderTable.style.display = 'table';
-            } else {
-                loading.innerText = 'কোনো অর্ডার পাওয়া যায়নি!';
-            }
-        }, (error) => {
-            loading.innerText = 'ডাটা লোড করতে সমস্যা হয়েছে: ' + error.message;
-        });
+            };
+
+            // Realtime listeners for both nodes
+            onValue(ordersRef, snapshot => {
+                ordersData = snapshot.exists() ? snapshot.val() : {};
+                ordersLoaded = true;
+                renderData();
+            }, error => {
+                loading.innerText = 'ডাটা লোড করতে সমস্যা হয়েছে: ' + error.message;
+            });
+
+            onValue(userOrdersRef, snapshot => {
+                userOrdersData = snapshot.exists() ? snapshot.val() : {};
+                userOrdersLoaded = true;
+                renderData();
+            }, error => {
+                loading.innerText = 'ডাটা লোড করতে সমস্যা হয়েছে: ' + error.message;
+            });
+        }
+
+        loadAllAdminOrders();
     </script>
 </body>
 </html>
