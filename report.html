@@ -220,13 +220,36 @@
             return dates;
         }
 
-        // আইটেম থেকে YYYY-MM-DD তারিখ বের করার হেলপার ফাংশন
-        function extractDateString(item) {
-            if (item.date) {
-                return item.date.split('T')[0];
-            } else if (item.timestamp) {
-                return new Date(item.timestamp).toISOString().split('T')[0];
+        // বাংলা সংখ্যা ইংরেজিতে রূপান্তর
+        function convertBanglaToEnglishDigits(str) {
+            if (!str) return '';
+            const banglaNum = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+            return str.replace(/[০-৯]/g, (w) => banglaNum.indexOf(w));
+        }
+
+        // আইটেম থেকে YYYY-MM-DD ফরম্যাটে তারিখ এক্সট্র্যাক্ট করা
+        function parseToStandardDate(item) {
+            const timeRaw = item.timestamp || item.date;
+            if (!timeRaw) return '';
+
+            // যদি টাইমস্ট্যাম্প স্ট্রিং বা বাংলা সংখ্যায় থাকে
+            let timeStr = convertBanglaToEnglishDigits(String(timeRaw));
+
+            // যদি Date অবজেক্ট গ্রহণযোগ্য ফরম্যাটে থাকে
+            let dateObj = new Date(timeStr);
+            if (!isNaN(dateObj.getTime())) {
+                return dateObj.toISOString().split('T')[0];
             }
+
+            // যদি তারিখ "D/M/YYYY" বা "DD/MM/YYYY" ফরম্যাটে থাকে (যেমন: ৯/৯/২০২৬)
+            const parts = timeStr.split(',')[0].split('/');
+            if (parts.length === 3) {
+                let day = parts[0].trim().padStart(2, '0');
+                let month = parts[1].trim().padStart(2, '0');
+                let year = parts[2].trim();
+                return `${year}-${month}-${day}`;
+            }
+
             return '';
         }
 
@@ -234,18 +257,37 @@
             try {
                 const last7Days = getLast7Days();
 
-                // ডাটাবেস থেকে deposits, orders এবং user_orders তথ্য সংগ্রহ
-                const [depositsSnap, ordersSnap, userOrdersSnap] = await Promise.all([
+                // ১. ডাটাবেস থেকে সকল প্রসেসিং তথ্য একত্রিত ফেস করা
+                const [depositsSnap, usersSnap, ordersSnap, userOrdersSnap] = await Promise.all([
                     get(ref(db, 'deposits')),
+                    get(ref(db, 'users')),
                     get(ref(db, 'orders')),
                     get(ref(db, 'user_orders'))
                 ]);
 
-                const deposits = depositsSnap.exists() ? depositsSnap.val() : {};
+                const depositsRaw = depositsSnap.exists() ? depositsSnap.val() : {};
+                const usersRaw = usersSnap.exists() ? usersSnap.val() : {};
                 const ordersRaw = ordersSnap.exists() ? ordersSnap.val() : {};
                 const userOrdersRaw = userOrdersSnap.exists() ? userOrdersSnap.val() : {};
 
-                // সব অর্ডার মার্জ করা (orders + user_orders)
+                // --- ডিপোজিট ডাটা একত্রিতকরণ (deposits + users/deposit_history) ---
+                const allDepositsList = [];
+
+                // Root 'deposits' নোড থেকে
+                Object.values(depositsRaw).forEach(dep => {
+                    allDepositsList.push(dep);
+                });
+
+                // 'users/{userId}/deposit_history' নোড থেকে
+                Object.values(usersRaw).forEach(user => {
+                    if (user && user.deposit_history) {
+                        Object.values(user.deposit_history).forEach(dep => {
+                            allDepositsList.push(dep);
+                        });
+                    }
+                });
+
+                // --- অর্ডার ডাটা একত্রিতকরণ (orders + user_orders) ---
                 const combinedOrders = {};
 
                 Object.keys(ordersRaw).forEach(key => {
@@ -265,6 +307,7 @@
                     }
                 });
 
+                // ভ্যারিয়েবল সেটআপ
                 let overallDepositSum = 0;
                 let overallOrderSum = 0;
                 let overallOrderCount = 0;
@@ -278,9 +321,10 @@
                     dailyOrders[date] = { count: 0, amount: 0 };
                 });
 
-                // ১. ডিপোজিট প্রসেসিং
-                Object.values(deposits).forEach(item => {
-                    const itemDate = extractDateString(item);
+                // ২. ডিপোজিট প্রসেসিং
+                allDepositsList.forEach(item => {
+                    const itemDate = parseToStandardDate(item);
+                    
                     if (dailyDeposits[itemDate]) {
                         const amount = parseFloat(item.amount || 0);
                         const method = (item.method || '').toLowerCase();
@@ -298,9 +342,9 @@
                     }
                 });
 
-                // ২. মার্জকৃত অর্ডার প্রসেসিং
+                // ৩. মার্জকৃত অর্ডার প্রসেসিং
                 Object.values(combinedOrders).forEach(item => {
-                    const itemDate = extractDateString(item);
+                    const itemDate = parseToStandardDate(item);
                     if (dailyOrders[itemDate]) {
                         const amount = parseFloat(item.totalPrice !== undefined ? item.totalPrice : (item.totalAmount || item.price || 0));
                         const serviceName = item.title || item.category || item.serviceName || item.service || 'Unknown Service';
@@ -312,7 +356,6 @@
                         overallOrderSum += amount;
                         overallOrderCount += 1;
 
-                        // সার্ভিস ওয়াইজ হিসাব
                         if (!serviceSummary[serviceName]) {
                             serviceSummary[serviceName] = { qty: 0, price: 0 };
                         }
@@ -321,12 +364,12 @@
                     }
                 });
 
-                // ৩. ইন্টারফেসে ডাটা রেন্ডার করা
+                // ৪. ইন্টারফেসে রেন্ডারিং
                 document.getElementById('totalDepositAmount').innerText = `৳${overallDepositSum.toFixed(2)}`;
                 document.getElementById('totalOrderAmount').innerText = `৳${overallOrderSum.toFixed(2)}`;
                 document.getElementById('totalOrderCount').innerText = `${overallOrderCount} টি`;
 
-                // ডিপোজিট টেবিল পূরণ
+                // ডিপোজিট টেবিল
                 const depositTbody = document.getElementById('dailyDepositTable');
                 depositTbody.innerHTML = '';
                 last7Days.forEach(date => {
@@ -342,7 +385,7 @@
                     depositTbody.appendChild(tr);
                 });
 
-                // অর্ডার টেবিল পূরণ
+                // অর্ডার টেবিল
                 const orderTbody = document.getElementById('dailyOrderTable');
                 orderTbody.innerHTML = '';
                 last7Days.forEach(date => {
@@ -356,7 +399,7 @@
                     orderTbody.appendChild(tr);
                 });
 
-                // সার্ভিস টেবিল পূরণ
+                // সার্ভিস সামারি টেবিল
                 const serviceTbody = document.getElementById('serviceTable');
                 serviceTbody.innerHTML = '';
                 if (Object.keys(serviceSummary).length > 0) {
