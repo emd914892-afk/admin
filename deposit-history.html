@@ -18,7 +18,6 @@
             padding: 20px;
         }
 
-        /* হেডার ও ব্যাক বাটন স্টাইল */
         .header {
             display: flex;
             align-items: center;
@@ -56,7 +55,6 @@
             color: #2c3e50;
         }
 
-        /* টেবিল কন্টেইনার */
         .table-container {
             background: #ffffff;
             padding: 20px;
@@ -87,19 +85,37 @@
             background-color: #f1f1f1;
         }
 
-        /* স্ট্যাটাস ব্যাজ */
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .user-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .user-email {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .user-uid {
+            font-size: 10px;
+            color: #a0a0a0;
+            font-family: monospace;
+        }
+
         .status {
             padding: 5px 10px;
             border-radius: 15px;
             font-size: 12px;
             font-weight: bold;
             display: inline-block;
+            text-transform: capitalize;
         }
-        .status.approved { background: #d4edda; color: #155724; }
+        .status.approved, .status.success { background: #d4edda; color: #155724; }
         .status.pending { background: #fff3cd; color: #856404; }
-        .status.rejected { background: #f8d7da; color: #721c24; }
+        .status.rejected, .status.failed { background: #f8d7da; color: #721c24; }
 
-        /* লোডার */
         #loading {
             text-align: center;
             padding: 20px;
@@ -110,28 +126,25 @@
 </head>
 <body>
 
-    <!-- হেডার ও ব্যাক বাটন -->
     <div class="header">
         <a href="javascript:history.back()" class="back-btn">&#8592; Back</a>
-        <h1>Deposit History</h1>
+        <h1>Deposit History (Admin)</h1>
     </div>
 
-    <!-- ডিপোজিট টেবিল -->
     <div class="table-container">
         <div id="loading">ডিপোজিট হিস্ট্রি লোড হচ্ছে...</div>
         <table id="depositTable" style="display: none;">
             <thead>
                 <tr>
-                    <th>User ID / Email</th>
+                    <th>User Details</th>
                     <th>Payment Method</th>
                     <th>Transaction ID</th>
                     <th>Amount</th>
                     <th>Status</th>
-                    <th>Date</th>
+                    <th>Date / Time</th>
                 </tr>
             </thead>
             <tbody id="depositList">
-                <!-- ফায়ারবেস থেকে ডাটা এখানে আসবে -->
             </tbody>
         </table>
     </div>
@@ -141,7 +154,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // আপনার Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyAz-zkj7o-5w47U2AFAdXWvpa0uYaF9VFw",
             authDomain: "mail-shop-bd.firebaseapp.com",
@@ -153,43 +165,67 @@
             measurementId: "G-5T3HESJSW2"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // ডাটাবেসের "deposits" নোড থেকে ডাটা নিয়ে আসা
-        const depositsRef = ref(db, 'deposits');
         const depositList = document.getElementById('depositList');
         const loading = document.getElementById('loading');
         const depositTable = document.getElementById('depositTable');
 
-        onValue(depositsRef, (snapshot) => {
-            depositList.innerHTML = ''; // আগের লিস্ট খালি করা
+        // users নোড থেকে ইউজার এবং তাদের deposit_history ফেস করা
+        const usersRef = ref(db, 'users');
+
+        onValue(usersRef, (snapshot) => {
+            depositList.innerHTML = '';
             
             if (snapshot.exists()) {
-                const data = snapshot.val();
-                
-                Object.keys(data).forEach((id) => {
-                    const deposit = data[id];
+                const usersData = snapshot.val();
+                let allDeposits = [];
 
-                    // স্ট্যাটাসের টেক্সট ও ক্লাস হ্যান্ডেল করা
-                    let statusClass = 'pending';
-                    let statusText = deposit.status || 'Pending';
+                // সকল ইউজারের deposit_history ডাটা একত্র করা
+                Object.keys(usersData).forEach((userId) => {
+                    const userData = usersData[userId];
                     
-                    if (statusText.toLowerCase() === 'approved' || statusText.toLowerCase() === 'success') {
-                        statusClass = 'approved';
-                    } else if (statusText.toLowerCase() === 'rejected' || statusText.toLowerCase() === 'failed') {
-                        statusClass = 'rejected';
+                    if (userData.deposit_history) {
+                        Object.keys(userData.deposit_history).forEach((depositId) => {
+                            const dep = userData.deposit_history[depositId];
+                            allDeposits.push({
+                                userId: userId,
+                                username: userData.username || 'N/A',
+                                email: dep.email || userData.email || 'N/A',
+                                method: dep.method || 'N/A',
+                                trxId: dep.trxId || dep.trxID || dep.transactionId || 'N/A',
+                                amount: dep.amount || '0',
+                                status: dep.status || 'success',
+                                timestamp: dep.timestamp || dep.date || 'N/A'
+                            });
+                        });
                     }
+                });
+
+                if (allDeposits.length === 0) {
+                    loading.innerText = 'কোনো ডিপোজিট হিস্ট্রি পাওয়া যায়নি!';
+                    return;
+                }
+
+                // হিস্ট্রি টেবিল রেন্ডার করা
+                allDeposits.forEach((deposit) => {
+                    let statusClass = deposit.status.toLowerCase();
 
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${deposit.user || deposit.email || 'N/A'}</td>
-                        <td><strong>${deposit.method || 'bKash/Nagad'}</strong></td>
-                        <td><code>${deposit.trxID || deposit.transactionId || 'N/A'}</code></td>
-                        <td>৳${deposit.amount || '0'}</td>
-                        <td><span class="status ${statusClass}">${statusText}</span></td>
-                        <td>${deposit.date || 'N/A'}</td>
+                        <td>
+                            <div class="user-info">
+                                <span class="user-name">${deposit.username}</span>
+                                <span class="user-email">${deposit.email}</span>
+                                <span class="user-uid">UID: ${deposit.userId}</span>
+                            </div>
+                        </td>
+                        <td><strong>${deposit.method.toUpperCase()}</strong></td>
+                        <td><code>${deposit.trxId}</code></td>
+                        <td>৳${deposit.amount}</td>
+                        <td><span class="status ${statusClass}">${deposit.status}</span></td>
+                        <td>${deposit.timestamp}</td>
                     `;
                     depositList.appendChild(tr);
                 });
@@ -197,7 +233,7 @@
                 loading.style.display = 'none';
                 depositTable.style.display = 'table';
             } else {
-                loading.innerText = 'কোনো ডিপোজিট হিস্ট্রি পাওয়া যায়নি!';
+                loading.innerText = 'কোনো তথ্য পাওয়া যায়নি!';
             }
         }, (error) => {
             loading.innerText = 'ডাটা লোড করতে সমস্যা হয়েছে: ' + error.message;
