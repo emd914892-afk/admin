@@ -106,14 +106,14 @@
 
     <div id="trackingContent" style="display: none;">
         
-        <!-- ১. গত ৩০ দিনের ডেইলি সাইট ভিজিটর -->
-        <div class="section-title">Daily Site Visitors Count</div>
+        <!-- ১. গত ৩০ দিনের ডেইলি সাইট ভিজিটর ও লগইন ট্র্যাকিং -->
+        <div class="section-title">Daily Logged-in Users & Visitors</div>
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
                         <th>Date</th>
-                        <th>Total Unique Visitors</th>
+                        <th>Unique Logged-in Users</th>
                     </tr>
                 </thead>
                 <tbody id="dailyVisitorsTable"></tbody>
@@ -173,7 +173,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // গত ৩০ দিনের তারিখের লিস্ট
+        // গত ৩০ দিনের তারিখের লিস্ট (YYYY-MM-DD)
         function getLast30Days() {
             const dates = [];
             for (let i = 0; i < 30; i++) {
@@ -184,109 +184,194 @@
             return dates;
         }
 
+        // বাংলা সংখ্যা ইংরেজিতে রূপান্তর
+        function convertBanglaToEnglish(str) {
+            if (!str) return '';
+            const banglaNum = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+            return String(str).replace(/[০-৯]/g, (w) => banglaNum.indexOf(w));
+        }
+
+        // স্ট্যান্ডার্ড তারিখ পার্সিং
+        function parseToStandardDate(timeRaw) {
+            if (!timeRaw) return '';
+
+            let timeStr = convertBanglaToEnglish(timeRaw);
+
+            let dateObj = new Date(timeStr);
+            if (!isNaN(dateObj.getTime())) {
+                return dateObj.toISOString().split('T')[0];
+            }
+
+            const parts = timeStr.split(',')[0].split('/');
+            if (parts.length === 3) {
+                let day = parts[0].trim().padStart(2, '0');
+                let month = parts[1].trim().padStart(2, '0');
+                let year = parts[2].trim();
+                return `${year}-${month}-${day}`;
+            }
+
+            return '';
+        }
+
         async function processTrackingData() {
-            const last30Days = getLast30Days();
+            try {
+                const last30Days = getLast30Days();
 
-            // ফায়ারবেস থেকে ডাটা ফেচ করা
-            const depositsSnap = await get(ref(db, 'deposits'));
-            const ordersSnap = await get(ref(db, 'orders'));
-            const visitsSnap = await get(ref(db, 'site_visits')); // ভিজিটর ট্র্যাকিং নোড
+                // ফায়ারবেস থেকে ডাটা ফেচ করা
+                const [depositsSnap, usersSnap, ordersSnap, userOrdersSnap, visitsSnap, loginsSnap] = await Promise.all([
+                    get(ref(db, 'deposits')),
+                    get(ref(db, 'users')),
+                    get(ref(db, 'orders')),
+                    get(ref(db, 'user_orders')),
+                    get(ref(db, 'site_visits')),
+                    get(ref(db, 'logins'))
+                ]);
 
-            const deposits = depositsSnap.exists() ? depositsSnap.val() : {};
-            const orders = ordersSnap.exists() ? ordersSnap.val() : {};
-            const visits = visitsSnap.exists() ? visitsSnap.val() : {};
+                const depositsRaw = depositsSnap.exists() ? depositsSnap.val() : {};
+                const usersRaw = usersSnap.exists() ? usersSnap.val() : {};
+                const ordersRaw = ordersSnap.exists() ? ordersSnap.val() : {};
+                const userOrdersRaw = userOrdersSnap.exists() ? userOrdersSnap.val() : {};
+                const visits = visitsSnap.exists() ? visitsSnap.val() : {};
+                const logins = loginsSnap.exists() ? loginsSnap.val() : {};
 
-            // ১. ভিজিটর প্রসেসিং
-            const visitorTbody = document.getElementById('dailyVisitorsTable');
-            last30Days.forEach(date => {
-                const count = visits[date] ? Object.keys(visits[date]).length : 0;
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td><strong>${date}</strong></td><td>${count} জন</td>`;
-                visitorTbody.appendChild(tr);
-            });
-
-            // ২. ডিপোজিট প্রসেসিং (ইউজার ভিত্তিক)
-            const userDeposits = {};
-            Object.values(deposits).forEach(item => {
-                const date = item.date ? item.date.split('T')[0] : '';
-                if (last30Days.includes(date)) {
-                    const user = item.email || item.user || 'Unknown User';
-                    const amount = parseFloat(item.amount || 0);
-
-                    if (!userDeposits[user]) {
-                        userDeposits[user] = { total: 0, highestDate: date, maxInSingleDay: 0 };
+                // ১. ইউজার লগইন ট্র্যাকিং প্রসেসিং (logins অথবা site_visits নোড চেক করা)
+                const visitorTbody = document.getElementById('dailyVisitorsTable');
+                visitorTbody.innerHTML = '';
+                
+                last30Days.forEach(date => {
+                    let count = 0;
+                    if (logins[date]) {
+                        count = Object.keys(logins[date]).length;
+                    } else if (visits[date]) {
+                        count = Object.keys(visits[date]).length;
                     }
-                    userDeposits[user].total += amount;
-                    if (amount > userDeposits[user].maxInSingleDay) {
-                        userDeposits[user].maxInSingleDay = amount;
-                        userDeposits[user].highestDate = date;
-                    }
-                }
-            });
 
-            // ৩. অর্ডার প্রসেসিং (ইউজার ভিত্তিক)
-            const userOrders = {};
-            Object.values(orders).forEach(item => {
-                const date = item.date ? item.date.split('T')[0] : '';
-                if (last30Days.includes(date)) {
-                    const user = item.email || item.name || 'Unknown User';
-                    const amount = parseFloat(item.totalAmount || item.price || 0);
-
-                    if (!userOrders[user]) {
-                        userOrders[user] = { total: 0, highestDate: date, maxInSingleDay: 0 };
-                    }
-                    userOrders[user].total += amount;
-                    if (amount > userOrders[user].maxInSingleDay) {
-                        userOrders[user].maxInSingleDay = amount;
-                        userOrders[user].highestDate = date;
-                    }
-                }
-            });
-
-            // টপ ১০ ডিপোজিটর সাজানো
-            const top10Depositors = Object.entries(userDeposits)
-                .sort((a, b) => b[1].total - a[1].total)
-                .slice(0, 10);
-
-            const depTbody = document.getElementById('topDepositorsTable');
-            if (top10Depositors.length > 0) {
-                top10Depositors.forEach(([user, data], index) => {
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td class="rank">#${index + 1}</td>
-                        <td>${user}</td>
-                        <td><strong>৳${data.total}</strong></td>
-                        <td>${data.highestDate}</td>
-                    `;
-                    depTbody.appendChild(tr);
+                    tr.innerHTML = `<td><strong>${date}</strong></td><td>${count} জন</td>`;
+                    visitorTbody.appendChild(tr);
                 });
-            } else {
-                depTbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">গত ৩০ দিনে কোনো ডিপোজিট নেই!</td></tr>`;
-            }
 
-            // টপ ১০ অর্ডারিং ইউজার সাজানো
-            const top10Orders = Object.entries(userOrders)
-                .sort((a, b) => b[1].total - a[1].total)
-                .slice(0, 10);
+                // ২. ডিপোজিট প্রসেসিং (deposits + users/deposit_history)
+                const allDeposits = [];
 
-            const ordTbody = document.getElementById('topOrdersTable');
-            if (top10Orders.length > 0) {
-                top10Orders.forEach(([user, data], index) => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td class="rank">#${index + 1}</td>
-                        <td>${user}</td>
-                        <td><strong>৳${data.total}</strong></td>
-                        <td>${data.highestDate}</td>
-                    `;
-                    ordTbody.appendChild(tr);
+                Object.values(depositsRaw).forEach(item => allDeposits.push(item));
+
+                Object.entries(usersRaw).forEach(([userId, userData]) => {
+                    if (userData && userData.deposit_history) {
+                        Object.values(userData.deposit_history).forEach(item => {
+                            allDeposits.push({
+                                ...item,
+                                user: item.email || userData.email || userData.username || userId
+                            });
+                        });
+                    }
                 });
-            } else {
-                ordTbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">গত ৩০ দিনে কোনো অর্ডার নেই!</td></tr>`;
-            }
 
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('trackingContent').style.display = 'block';
+                const userDeposits = {};
+                allDeposits.forEach(item => {
+                    const date = parseToStandardDate(item.timestamp || item.date);
+                    if (last30Days.includes(date)) {
+                        const user = item.email || item.user || 'Unknown User';
+                        const amount = parseFloat(item.amount || 0);
+
+                        if (!userDeposits[user]) {
+                            userDeposits[user] = { total: 0, highestDate: date, maxInSingleDay: 0 };
+                        }
+                        userDeposits[user].total += amount;
+                        if (amount > userDeposits[user].maxInSingleDay) {
+                            userDeposits[user].maxInSingleDay = amount;
+                            userDeposits[user].highestDate = date;
+                        }
+                    }
+                });
+
+                // ৩. অর্ডার প্রসেসিং (orders + user_orders)
+                const combinedOrders = [];
+
+                Object.values(ordersRaw).forEach(item => combinedOrders.push(item));
+
+                Object.entries(userOrdersRaw).forEach(([userId, userGroup]) => {
+                    if (typeof userGroup === 'object') {
+                        Object.values(userGroup).forEach(item => {
+                            const userMatch = usersRaw[userId];
+                            const userIdentifier = item.email || (userMatch ? (userMatch.email || userMatch.username) : userId);
+                            combinedOrders.push({
+                                ...item,
+                                user: userIdentifier
+                            });
+                        });
+                    }
+                });
+
+                const userOrders = {};
+                combinedOrders.forEach(item => {
+                    const date = parseToStandardDate(item.timestamp || item.date);
+                    if (last30Days.includes(date)) {
+                        const user = item.email || item.user || item.name || 'Unknown User';
+                        const amount = parseFloat(item.totalPrice !== undefined ? item.totalPrice : (item.totalAmount || item.price || 0));
+
+                        if (!userOrders[user]) {
+                            userOrders[user] = { total: 0, highestDate: date, maxInSingleDay: 0 };
+                        }
+                        userOrders[user].total += amount;
+                        if (amount > userOrders[user].maxInSingleDay) {
+                            userOrders[user].maxInSingleDay = amount;
+                            userOrders[user].highestDate = date;
+                        }
+                    }
+                });
+
+                // টপ ১০ ডিপোজিটর সাজানো
+                const top10Depositors = Object.entries(userDeposits)
+                    .sort((a, b) => b[1].total - a[1].total)
+                    .slice(0, 10);
+
+                const depTbody = document.getElementById('topDepositorsTable');
+                depTbody.innerHTML = '';
+                if (top10Depositors.length > 0) {
+                    top10Depositors.forEach(([user, data], index) => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td class="rank">#${index + 1}</td>
+                            <td>${user}</td>
+                            <td><strong>৳${data.total.toFixed(2)}</strong></td>
+                            <td>${data.highestDate}</td>
+                        `;
+                        depTbody.appendChild(tr);
+                    });
+                } else {
+                    depTbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">গত ৩০ দিনে কোনো ডিপোজিট নেই!</td></tr>`;
+                }
+
+                // টপ ১০ অর্ডারিং ইউজার সাজানো
+                const top10Orders = Object.entries(userOrders)
+                    .sort((a, b) => b[1].total - a[1].total)
+                    .slice(0, 10);
+
+                const ordTbody = document.getElementById('topOrdersTable');
+                ordTbody.innerHTML = '';
+                if (top10Orders.length > 0) {
+                    top10Orders.forEach(([user, data], index) => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td class="rank">#${index + 1}</td>
+                            <td>${user}</td>
+                            <td><strong>৳${data.total.toFixed(2)}</strong></td>
+                            <td>${data.highestDate}</td>
+                        `;
+                        ordTbody.appendChild(tr);
+                    });
+                } else {
+                    ordTbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">গত ৩০ দিনে কোনো অর্ডার নেই!</td></tr>`;
+                }
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('trackingContent').style.display = 'block';
+
+            } catch (error) {
+                console.error("Tracking Data Processing Error:", error);
+                document.getElementById('loading').innerText = 'ডাটা প্রসেস করতে সমস্যা হয়েছে: ' + error.message;
+            }
         }
 
         processTrackingData();
